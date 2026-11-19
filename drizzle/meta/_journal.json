@@ -1,0 +1,104 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1789449297855,
+      "tag": "0000_brainy_echo",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1789450644079,
+      "tag": "0001_omniscient_eddie_brock",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789450961276,
+      "tag": "0002_grey_galactus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1789453055611,
+      "tag": "0003_loving_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1789705129840,
+      "tag": "0004_previous_wither",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1789705808604,
+      "tag": "0005_wild_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1789705862221,
+      "tag": "0006_brown_wallflower",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1789706050241,
+      "tag": "0007_broken_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1789970503493,
+      "tag": "0008_flowery_lorna_dane",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1789972562395,
+      "tag": "0009_confused_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1790050888359,
+      "tag": "0010_deep_iceman",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1790051721928,
+      "tag": "0011_stiff_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1790222667078,
+      "tag": "0012_sweet_siren",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1795057441492,
+      "tag": "0013_fine_moon_knight",
+      "breakpoints": true
+    }
+  ]
+}
