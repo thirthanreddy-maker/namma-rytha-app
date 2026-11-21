@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { Request, Response } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "../server/_core/oauth";
 import { registerStorageProxy } from "../server/_core/storageProxy";
@@ -28,4 +28,6 @@ app.use(
 app.post("/api/scheduled/irrigation-alert", scheduledIrrigationHandler);
 app.post("/api/iot/ingest", iotIngestHandler);
 
-export default app;
+export default function handler(req: Request, res: Response) {
+  return app(req, res);
+}
