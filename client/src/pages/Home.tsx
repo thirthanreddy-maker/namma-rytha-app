@@ -193,10 +193,11 @@ export default function Home() {
   const [assistantMessages, setAssistantMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [toast, setToast] = useState("");
-  const [tasks, setTasks] = useState(() => {
+  const [tasks, setTasks] = useState<typeof initialTasks>(() => {
     try {
       const saved = localStorage.getItem("namma-rytha-tasks");
-      return saved ? JSON.parse(saved) : initialTasks;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : initialTasks;
     } catch {
       return initialTasks;
     }
@@ -527,7 +528,7 @@ export default function Home() {
       <div className="section-row"><div><span className="eyebrow">YOUR DAY</span><h2>Small actions, stronger harvest</h2></div><button className="text-button" onClick={() => goTo("My Farm")}>Open farm plan <ArrowUpRight size={15} /></button></div>
       <section className="content-grid">
         <div className="panel task-panel">
-          <div className="panel-title"><div><h3>Today’s farm plan</h3><p>{completedTasks} of {tasks.length} actions complete</p></div><span className="progress-ring">{Math.round((completedTasks / tasks.length) * 100)}%</span></div>
+          <div className="panel-title"><div><h3>Today’s farm plan</h3><p>{completedTasks} of {tasks.length} actions complete</p></div><span className="progress-ring">{tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%</span></div>
           <div className="task-list">
             {tasks.map((task, index) => <button className={`task-row ${task.done ? "is-done" : ""}`} key={task.title} onClick={() => toggleTask(index)}><span className={`task-icon ${task.tone}`}><task.icon size={18} /></span><span className="task-copy"><strong>{task.title}</strong><small>{task.detail}</small></span><span className="task-check">{task.done ? <Check size={15} /> : <ChevronRight size={17} />}</span></button>)}
           </div>

@@ -86,6 +86,26 @@ function getMockResponseForKey(key: string) {
     };
   }
   // Default for inbox, history, announcements, community feed, alerts, etc.
+  if (key.includes("announcements.feed") || key.includes("announcements.adminList")) {
+    return [
+      {
+        id: 1,
+        title: "Welcome to Namma Rytha!",
+        message: "Your smart farming assistant is ready. Check the weather, soil sensors, and market rates from one place.",
+        ctaLabel: "Explore features",
+        targetView: "Community",
+        tone: "green",
+        status: "published",
+        targetCrop: null,
+        targetLocation: null,
+        publishAt: new Date().toISOString(),
+        expireAt: null,
+        viewCount: 0,
+        ctaClickCount: 0,
+        translations: [],
+      },
+    ];
+  }
   return [];
 }
 
@@ -213,7 +233,60 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  // 4. Batch query handler for tRPC client calls
+  // 4. Announcement mutation handler (POST requests)
+  if (req.method === "POST") {
+    // Drain the body to avoid connection issues
+    let body = "";
+    for await (const chunk of req) {
+      body += chunk;
+    }
+
+    const path = url.split("?")[0].replace("/api/trpc/", "");
+
+    // announcements.create → return a mock new announcement
+    if (path === "announcements.create") {
+      const newId = Date.now();
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { id: newId, success: true } } } }]));
+      return;
+    }
+    // announcements.update → return success
+    if (path === "announcements.update") {
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+      return;
+    }
+    // announcements.setStatus → return success
+    if (path === "announcements.setStatus") {
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+      return;
+    }
+    // announcements.remove → return success
+    if (path === "announcements.remove") {
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+      return;
+    }
+    // announcements.event → return success
+    if (path === "announcements.event") {
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+      return;
+    }
+    // assistant.inbox / assistant.escalate → return success
+    if (path === "assistant.inbox" || path === "assistant.escalate") {
+      res.statusCode = 200;
+      res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+      return;
+    }
+    // Generic POST fallback: treat as a mutation and return success
+    res.statusCode = 200;
+    res.end(JSON.stringify([{ result: { data: { json: { success: true } } } }]));
+    return;
+  }
+
+  // 5. Batch query handler for tRPC client GET calls
   const queryKeys = url.split("?")[0].replace("/api/trpc/", "").split(",");
   const results = queryKeys.map((key) => {
     return {
