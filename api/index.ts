@@ -79,6 +79,12 @@ function getMockResponseForKey(key: string) {
       { id: 1, plotId: 1, crop: "Tomato", sowingDate: "2026-09-01", expectedHarvestDate: "2026-12-15" },
     ];
   }
+  if (key.includes("announcements.analytics")) {
+    return {
+      rows: [],
+      totals: { views: 0, ctaClicks: 0, announcements: 0 },
+    };
+  }
   // Default for inbox, history, announcements, community feed, alerts, etc.
   return [];
 }
