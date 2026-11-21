@@ -248,12 +248,14 @@ export const appRouter = router({
         const sessionToken = await sdk.createSessionToken(demoUser.openId, { name: demoUser.name, expiresInMs: ONE_YEAR_MS });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        const signedInUser = await getUserByOpenId(demoUser.openId);
-        if (signedInUser) await createSignInHistory(signedInUser.id, "Demo Access");
+        try {
+          const signedInUser = await getUserByOpenId(demoUser.openId);
+          if (signedInUser) await createSignInHistory(signedInUser.id, "Demo Access");
+        } catch {}
         return { success: true as const, name: demoUser.name };
       } catch (error) {
         console.error("[Auth] Demo login error:", error);
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Demo access failed." });
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Demo access failed: " + (error instanceof Error ? error.message : String(error)) });
       }
     }),
     phoneOtpSend: publicProcedure.input(z.object({ phone: z.string().min(8).max(20) })).mutation(async ({ input }) => {

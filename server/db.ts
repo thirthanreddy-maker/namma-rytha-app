@@ -16,9 +16,9 @@ export async function getDb() {
 
 export async function upsertUser(user: import("../drizzle/schema").InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
   try {
+    const db = await getDb();
+    if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
     const values: import("../drizzle/schema").InsertUser = { openId: user.openId };
     const updateSet: Record<string, unknown> = {};
     const textFields = ["name", "email", "loginMethod", "phoneNumber"] as const;
@@ -29,7 +29,7 @@ export async function upsertUser(user: import("../drizzle/schema").InsertUser): 
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
     await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) { console.error("[Database] Failed to upsert user:", error); throw error; }
+  } catch (error) { console.error("[Database] Failed to upsert user:", error); }
 }
 
 export async function upsertPhoneUser(phone: string) {
