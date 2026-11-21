@@ -606,11 +606,40 @@ function DiagnosisModal({ image, setImage, loading, status, selectedPlot, onClos
   const handleFile = (file?: File) => {
     if (!file) return;
     if (!file.type.match(/^image\/(jpeg|png|webp)$/)) return;
-    if (file.size > 8 * 1024 * 1024) return;
     const reader = new FileReader();
     reader.onload = () => {
-      setImage(String(reader.result));
-      setFileName(file.name);
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          setImage(compressedDataUrl);
+          setFileName(`${file.name.replace(/\.[^/.]+$/, "")}-optimized.jpg`);
+        } else {
+          setImage(String(reader.result));
+          setFileName(file.name);
+        }
+      };
+      img.src = String(reader.result);
     };
     reader.readAsDataURL(file);
   };
