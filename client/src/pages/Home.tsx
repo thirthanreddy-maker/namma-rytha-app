@@ -285,7 +285,7 @@ export default function Home() {
   const sensorHistoryQuery = trpc.sensors.moistureHistory.useQuery(weatherInput, { refetchInterval: 5 * 60 * 1000 });
   const inboxQuery = trpc.assistant.inbox.useQuery();
   const markInboxReadMutation = trpc.assistant.markRead.useMutation({ onSuccess: () => void trpcUtils.assistant.inbox.invalidate() });
-  const unreadInbox = (inboxQuery.data ?? []).filter((item) => item.agronomistReply && !item.readAt).length;
+  const unreadInbox = Array.isArray(inboxQuery.data) ? inboxQuery.data.filter((item) => item.agronomistReply && !item.readAt).length : 0;
   const soilMoisture = selectedPlot === plotOptions[0] ? 46 : 58;
   const selectedCrop: CropName = selectedPlot.includes("Ragi") ? "Ragi" : "Tomato";
   const selectedStage: CropStage = selectedCrop === "Tomato" ? "Flowering" : "Tillering";

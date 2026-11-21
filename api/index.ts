@@ -144,17 +144,50 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  // 4. Fallback for other queries
-  res.statusCode = 200;
-  res.end(
-    JSON.stringify([
-      {
+  // 4. Batch query handler for tRPC client calls
+  // The tRPC client batches multiple query endpoints into single requests like:
+  // /api/trpc/crop.history,weather.current,sensors.moistureHistory,assistant.inbox?...
+  const queryKeys = url.split("?")[0].replace("/api/trpc/", "").split(",");
+  const results = queryKeys.map((key) => {
+    if (key.includes("assistant.inbox") || key.includes("crop.history")) {
+      return { result: { data: { json: [] } } };
+    }
+    if (key.includes("weather.current")) {
+      return {
         result: {
           data: {
-            json: { success: true },
+            json: {
+              temperature: 28,
+              rainProbability: 40,
+              windSpeed: 12,
+              weatherCode: 2,
+              hourly: [],
+              source: "fallback",
+              fetchedAt: new Date().toISOString(),
+            },
           },
         },
-      },
-    ])
-  );
+      };
+    }
+    if (key.includes("sensors.moistureHistory")) {
+      return {
+        result: {
+          data: {
+            json: {
+              plots: {
+                "Plot A · Tomato": { values: [58, 53, 55, 49, 46, 50, 46], moisture: 46 },
+                "Plot B · Ragi": { values: [62, 60, 57, 55, 58, 56, 58], moisture: 58 },
+              },
+              source: "saved sensor cache",
+              fetchedAt: new Date().toISOString(),
+            },
+          },
+        },
+      };
+    }
+    return { result: { data: { json: [] } } };
+  });
+
+  res.statusCode = 200;
+  res.end(JSON.stringify(results));
 }
