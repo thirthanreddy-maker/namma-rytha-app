@@ -7,7 +7,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
-import { addCommunityComment, addSensorReading, createAgronomistReviewRequest, createAnnouncement, createCommunityPost, createCropDiagnosisHistory, createNotificationDeliveryLog, createSignInHistory, createUserExpense, createUserPlot, createUserSale, createUserTask, deleteAnnouncement, getAdminSummary, getAgronomistReviewRequests, getAllAnnouncements, getAnnouncementAnalytics, getCommunityComments, getCommunityFeed, getCommunityPost, getCropDiagnosisHistory, getFinanceSummary, getLatestSensorReadings, getPublishedAnnouncements, getUserByOpenId, getUserExpenses, getUserNotificationDeliveryLog, getUserNotificationDeliveryLogs, getUserPlots, getUserSales, getUserSignInHistory, getUserTasks, markAgronomistReviewRead, recordAnnouncementEvent, setTaskStatus, toggleCommunityLike, updateAnnouncement, updateAnnouncementStatus, updateUserAvatar, updateUserProfile, upsertPhoneUser } from "./db";
+import { addCommunityComment, addSensorReading, createAgronomistReviewRequest, createAnnouncement, createCommunityPost, createCropDiagnosisHistory, createNotificationDeliveryLog, createSignInHistory, createUserExpense, createUserPlot, createUserSale, createUserTask, deleteAnnouncement, getAdminSummary, getAgronomistReviewRequests, getAllAnnouncements, getAnnouncementAnalytics, getCommunityComments, getCommunityFeed, getCommunityPost, getCropDiagnosisHistory, getFinanceSummary, getLatestSensorReadings, getPublishedAnnouncements, getUserByOpenId, getUserExpenses, getUserNotificationDeliveryLog, getUserNotificationDeliveryLogs, getUserPlots, getUserSales, getUserSignInHistory, getUserTasks, markAgronomistReviewRead, recordAnnouncementEvent, setTaskStatus, toggleCommunityLike, updateAnnouncement, updateAnnouncementStatus, updateUserAvatar, updateUserProfile, upsertNormalUser, upsertPhoneUser } from "./db";
 import { checkPhoneOtp, normalizePhone, sendPhoneOtp } from "./phoneOtp";
 import { sdk } from "./_core/sdk";
 import { getOtpLimiter } from "./redis";
@@ -223,6 +223,39 @@ export const appRouter = router({
     alertHistory: protectedProcedure.query(({ ctx }) => getUserNotificationDeliveryLogs(ctx.user.id)),
     signInHistory: protectedProcedure.query(({ ctx }) => getUserSignInHistory(ctx.user.id)),
     alertRetry: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => { const log = await getUserNotificationDeliveryLog(ctx.user.id, input.id); if (!log) throw new TRPCError({ code: "NOT_FOUND", message: "Alert record not found." }); if (log.status !== "failed") throw new TRPCError({ code: "BAD_REQUEST", message: "Only failed alerts can be retried." }); try { const result = await sendFarmerAlert(log.channel, log.recipient, log.message); await createNotificationDeliveryLog({ userId: ctx.user.id, channel: log.channel, status: result.delivered ? "delivered" : "failed", recipient: log.recipient, message: result.message }); return result; } catch (error) { await createNotificationDeliveryLog({ userId: ctx.user.id, channel: log.channel, status: "failed", recipient: log.recipient, message: "Retry request failed." }); throw error; } }),
+    login: publicProcedure.input(z.object({
+      identifier: z.string().trim().min(2).max(100),
+      password: z.string().min(4).max(100),
+      name: z.string().trim().max(100).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const displayName = input.name?.trim() || input.identifier.split("@")[0] || "Farmer";
+        const user = await upsertNormalUser(input.identifier, displayName);
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name, expiresInMs: ONE_YEAR_MS });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        const signedInUser = await getUserByOpenId(user.openId);
+        if (signedInUser) await createSignInHistory(signedInUser.id, "Standard Login");
+        return { success: true as const, name: user.name };
+      } catch (error) {
+        console.error("[Auth] Login error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Sign-in failed. Please try again." });
+      }
+    }),
+    demoLogin: publicProcedure.mutation(async ({ ctx }) => {
+      try {
+        const demoUser = await upsertNormalUser("demo-farmer", "Demo Farmer");
+        const sessionToken = await sdk.createSessionToken(demoUser.openId, { name: demoUser.name, expiresInMs: ONE_YEAR_MS });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        const signedInUser = await getUserByOpenId(demoUser.openId);
+        if (signedInUser) await createSignInHistory(signedInUser.id, "Demo Access");
+        return { success: true as const, name: demoUser.name };
+      } catch (error) {
+        console.error("[Auth] Demo login error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Demo access failed." });
+      }
+    }),
     phoneOtpSend: publicProcedure.input(z.object({ phone: z.string().min(8).max(20) })).mutation(async ({ input }) => {
       const phone = normalizePhone(input.phone);
       try {

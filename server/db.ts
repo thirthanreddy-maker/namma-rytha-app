@@ -38,6 +38,31 @@ export async function upsertPhoneUser(phone: string) {
   return { openId, name: "Farmer" };
 }
 
+export function hashUserPassword(password: string, salt = randomBytes(16).toString("hex")) {
+  const hash = createHash("sha256").update(`${salt}:${password}`).digest("hex");
+  return `${salt}:${hash}`;
+}
+
+export function verifyUserPassword(password: string, stored: string) {
+  const [salt, expected] = stored.split(":");
+  if (!salt || !expected) return false;
+  const hash = createHash("sha256").update(`${salt}:${password}`).digest("hex");
+  return hash === expected;
+}
+
+export async function upsertNormalUser(emailOrUsername: string, name: string) {
+  const cleanId = emailOrUsername.trim().toLowerCase();
+  const openId = `usr_${createHash("sha256").update(cleanId).digest("hex").slice(0, 48)}`;
+  await upsertUser({
+    openId,
+    name: name.trim() || "Farmer",
+    email: cleanId.includes("@") ? cleanId : null,
+    loginMethod: "password",
+    lastSignedIn: new Date(),
+  });
+  return { openId, name: name.trim() || "Farmer" };
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) { console.warn("[Database] Cannot get user: database not available"); return undefined; }
