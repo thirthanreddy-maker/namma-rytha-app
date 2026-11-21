@@ -193,9 +193,23 @@ export default function Home() {
   const [assistantMessages, setAssistantMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [toast, setToast] = useState("");
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("namma-rytha-tasks");
+      return saved ? JSON.parse(saved) : initialTasks;
+    } catch {
+      return initialTasks;
+    }
+  });
   const [customTask, setCustomTask] = useState({ title: "", detail: "" });
-  const [expenses, setExpenses] = useState<Array<{ label: string; amount: number }>>([{ label: "Seed & nursery", amount: 8400 }, { label: "Fertilizer & crop care", amount: 14200 }, { label: "Labour", amount: 22000 }, { label: "Water & transport", amount: 20000 }]);
+  const [expenses, setExpenses] = useState<Array<{ label: string; amount: number }>>(() => {
+    try {
+      const saved = localStorage.getItem("namma-rytha-expenses");
+      return saved ? JSON.parse(saved) : [{ label: "Seed & nursery", amount: 8400 }, { label: "Fertilizer & crop care", amount: 14200 }, { label: "Labour", amount: 22000 }, { label: "Water & transport", amount: 20000 }];
+    } catch {
+      return [{ label: "Seed & nursery", amount: 8400 }, { label: "Fertilizer & crop care", amount: 14200 }, { label: "Labour", amount: 22000 }, { label: "Water & transport", amount: 20000 }];
+    }
+  });
   const [expenseDraft, setExpenseDraft] = useState({ label: "", amount: "" });
   const [diagnosisSubmitted, setDiagnosisSubmitted] = useState(false);
   const [plotName, setPlotName] = useState("");
@@ -446,10 +460,35 @@ export default function Home() {
   };
 
   const toggleTask = (index: number) => {
-    setTasks((current) => current.map((task, i) => (i === index ? { ...task, done: !task.done } : task)));
+    setTasks((current: any[]) => {
+      const updated = current.map((task, i) => (i === index ? { ...task, done: !task.done } : task));
+      try { localStorage.setItem("namma-rytha-tasks", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   };
-  const addTask = () => { if (!customTask.title.trim()) return; setTasks((current) => [...current, { title: customTask.title.trim(), detail: customTask.detail.trim() || "Added to your farm plan", icon: CalendarDays, tone: "purple", done: false }]); setCustomTask({ title: "", detail: "" }); setShowTaskModal(false); notify("Task added to your farm plan."); };
-  const addExpense = () => { const amount = Number(expenseDraft.amount); if (!expenseDraft.label.trim() || !amount) return; setExpenses((current) => [...current, { label: expenseDraft.label.trim(), amount }]); setExpenseDraft({ label: "", amount: "" }); setShowExpenseModal(false); notify("Expense added to your profit plan."); };
+  const addTask = () => {
+    if (!customTask.title.trim()) return;
+    setTasks((current: any[]) => {
+      const updated = [...current, { title: customTask.title.trim(), detail: customTask.detail.trim() || "Added to your farm plan", icon: CalendarDays, tone: "purple", done: false }];
+      try { localStorage.setItem("namma-rytha-tasks", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    setCustomTask({ title: "", detail: "" });
+    setShowTaskModal(false);
+    notify("Task added to your farm plan.");
+  };
+  const addExpense = () => {
+    const amount = Number(expenseDraft.amount);
+    if (!expenseDraft.label.trim() || !amount) return;
+    setExpenses((current) => {
+      const updated = [...current, { label: expenseDraft.label.trim(), amount }];
+      try { localStorage.setItem("namma-rytha-expenses", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    setExpenseDraft({ label: "", amount: "" });
+    setShowExpenseModal(false);
+    notify("Expense added to your profit plan.");
+  };
 
   const renderOverview = () => (
     <>
