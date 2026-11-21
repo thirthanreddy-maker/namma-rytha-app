@@ -20,6 +20,69 @@ async function signSessionToken(openId: string, name: string) {
     .sign(SECRET_KEY);
 }
 
+function getMockResponseForKey(key: string) {
+  if (key.includes("weather.current")) {
+    return {
+      temperature: 28,
+      rainProbability: 40,
+      windSpeed: 12,
+      weatherCode: 2,
+      hourly: [],
+      source: "fallback",
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+  if (key.includes("sensors.moistureHistory")) {
+    return {
+      plots: {
+        "Plot A · Tomato": { values: [58, 53, 55, 49, 46, 50, 46], moisture: 46 },
+        "Plot B · Ragi": { values: [62, 60, 57, 55, 58, 56, 58], moisture: 58 },
+      },
+      source: "saved sensor cache",
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+  if (key.includes("farm.finance.summary")) {
+    return { expenses: 12500, sales: 28000, profit: 15500 };
+  }
+  if (key.includes("market.current")) {
+    return {
+      commodity: "Tomato",
+      variety: "Local",
+      market: "Kolar",
+      minPrice: 18,
+      maxPrice: 26,
+      modalPrice: 22,
+      updatedAt: new Date().toISOString(),
+      source: "demo",
+    };
+  }
+  if (key.includes("farm.plots.list")) {
+    return [
+      { id: 1, name: "Plot A · Tomato", crop: "Tomato", area: 1.5, soilType: "Red loam", ingestToken: "token_plot_a" },
+      { id: 2, name: "Plot B · Ragi", crop: "Ragi", area: 2.0, soilType: "Clay loam", ingestToken: "token_plot_b" },
+    ];
+  }
+  if (key.includes("sensors.readings")) {
+    return [
+      { id: 1, plotId: 1, moisture: 46, temperature: 28, humidity: 65, battery: 90, recordedAt: new Date().toISOString() },
+    ];
+  }
+  if (key.includes("farm.planning.tasks")) {
+    return [
+      { id: 1, title: "Weeding in Tomato row 2", done: false, dueDate: new Date().toISOString() },
+      { id: 2, title: "Check drip irrigation filters", done: true, dueDate: new Date().toISOString() },
+    ];
+  }
+  if (key.includes("farm.cycles.list")) {
+    return [
+      { id: 1, plotId: 1, crop: "Tomato", sowingDate: "2026-09-01", expectedHarvestDate: "2026-12-15" },
+    ];
+  }
+  // Default for inbox, history, announcements, community feed, alerts, etc.
+  return [];
+}
+
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -145,47 +208,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   // 4. Batch query handler for tRPC client calls
-  // The tRPC client batches multiple query endpoints into single requests like:
-  // /api/trpc/crop.history,weather.current,sensors.moistureHistory,assistant.inbox?...
   const queryKeys = url.split("?")[0].replace("/api/trpc/", "").split(",");
   const results = queryKeys.map((key) => {
-    if (key.includes("assistant.inbox") || key.includes("crop.history")) {
-      return { result: { data: { json: [] } } };
-    }
-    if (key.includes("weather.current")) {
-      return {
-        result: {
-          data: {
-            json: {
-              temperature: 28,
-              rainProbability: 40,
-              windSpeed: 12,
-              weatherCode: 2,
-              hourly: [],
-              source: "fallback",
-              fetchedAt: new Date().toISOString(),
-            },
-          },
+    return {
+      result: {
+        data: {
+          json: getMockResponseForKey(key),
         },
-      };
-    }
-    if (key.includes("sensors.moistureHistory")) {
-      return {
-        result: {
-          data: {
-            json: {
-              plots: {
-                "Plot A · Tomato": { values: [58, 53, 55, 49, 46, 50, 46], moisture: 46 },
-                "Plot B · Ragi": { values: [62, 60, 57, 55, 58, 56, 58], moisture: 58 },
-              },
-              source: "saved sensor cache",
-              fetchedAt: new Date().toISOString(),
-            },
-          },
-        },
-      };
-    }
-    return { result: { data: { json: [] } } };
+      },
+    };
   });
 
   res.statusCode = 200;
