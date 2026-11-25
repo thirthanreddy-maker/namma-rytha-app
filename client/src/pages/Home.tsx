@@ -57,6 +57,7 @@ import { trpc } from "@/lib/trpc";
 import { toast as sonnerToast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage, formatCurrency, formatDate, LANG_CODE_TO_NAME, normalizeLangCode, type AppLangName } from "@/i18n";
+import { useFarmLocation } from "@/hooks/useFarmLocation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { MapView } from "@/components/Map";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -270,7 +271,9 @@ export default function Home() {
   const [diagnosisImage, setDiagnosisImage] = useState("");
   const [diagnosisVisualHints, setDiagnosisVisualHints] = useState<{ greenPct: number; yellowPct: number; brownSpotPct: number } | undefined>(undefined);
   const [selectedPlot, setSelectedPlot] = useState(plotOptions[0]);
-  const [liveLocation, setLiveLocation] = useState({ lat: 13.135, lng: 78.132 });
+  const [showManualLocationModal, setShowManualLocationModal] = useState(false);
+  const [manualLocationDraft, setManualLocationDraft] = useState("");
+  const [dismissLocationBanner, setDismissLocationBanner] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
   const locationMarker = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const overlayMarkers = useRef<Record<OverlayName, google.maps.marker.AdvancedMarkerElement[]>>({ weather: [], irrigation: [], soil: [] });
@@ -300,21 +303,42 @@ export default function Home() {
   const [analysisStatus, setAnalysisStatus] = useState("Ready to analyze");
   const [reviewRequested, setReviewRequested] = useState(false);
   const trpcUtils = trpc.useUtils();
+  const silentLocationSyncMut = trpc.auth.profile.useMutation({
+    onSuccess: (updatedUser) => {
+      trpcUtils.auth.me.setData(undefined, updatedUser);
+    },
+  });
+  const farmLocation = useFarmLocation({
+    savedProfileLocation: user?.farmLocation ?? null,
+    onPersistLocation: (formattedLocation) => {
+      if (!user) return;
+      silentLocationSyncMut.mutate({
+        name: user.name?.trim() || "Farmer",
+        farmLocation: formattedLocation,
+        preferredLanguage: LANG_CODE_TO_NAME[normalizeLangCode(user.preferredLanguage)],
+      });
+    },
+  });
+  const liveLocation = farmLocation.effectiveCoords;
   const [plotCrop, setPlotCrop] = useState("Tomato");
   const [plotArea, setPlotArea] = useState("1");
   const [notificationPhone, setNotificationPhone] = useState("");
   const [notificationChannel, setNotificationChannel] = useState<"in_app" | "sms" | "whatsapp">("in_app");
-  const [profileName, setProfileName] = useState("Ravi Kumar");
-  const [profileLocation, setProfileLocation] = useState("Kolar district, Karnataka");
+  const [profileName, setProfileName] = useState("Farmer");
+  const [profileLocation, setProfileLocation] = useState("");
   const [profileLanguage, setProfileLanguage] = useState<AppLangName>("English");
   useEffect(() => {
     if (!user || activeView !== "Profile") return;
     setProfileName(user.name ?? "Farmer");
-    setProfileLocation(user.farmLocation ?? "Kolar district, Karnataka");
+    setProfileLocation(
+      farmLocation.address?.formatted ||
+        user.farmLocation ||
+        "",
+    );
     setProfileLanguage(LANG_CODE_TO_NAME[normalizeLangCode(user.preferredLanguage)]);
     setNotificationPhone(user.phoneNumber ?? "");
     setNotificationChannel(user.notificationChannel ?? "in_app");
-  }, [user, activeView]);
+  }, [user, activeView, farmLocation.address?.formatted]);
   const createPlotMutation = trpc.farm.plots.create.useMutation({ onSuccess: (plot) => { void trpcUtils.farm.plots.list.invalidate(); void trpcUtils.digitalTwin.overview.invalidate(); void trpcUtils.irrigationIntel.budgetPlan.invalidate(); void trpcUtils.satellite.insights.invalidate(); setShowPlotModal(false); if (plot.ingestToken) void navigator.clipboard?.writeText(plot.ingestToken); notify(`${plotName || "New plot"} saved. Device token copied for sensor setup.`); setPlotName(""); setPlotCrop("Tomato"); setPlotArea("1"); }, onError: (error) => notify(error.message) });
   const notificationPreferencesMutation = trpc.farm.notifications.preferences.useMutation({ onSuccess: () => { void trpcUtils.auth.me.invalidate(); notify("Notification preferences saved."); }, onError: (error) => notify(error.message) });
   const notificationTestMutation = trpc.farm.notifications.test.useMutation({ onSuccess: (result) => notify(result.message), onError: (error) => notify(error.message) });
@@ -323,14 +347,6 @@ export default function Home() {
   const alertHistoryQuery = trpc.auth.alertHistory.useQuery(undefined, { enabled: activeView === "Profile" && Boolean(user), refetchOnWindowFocus: false });
   const signInHistoryQuery = trpc.auth.signInHistory.useQuery(undefined, { enabled: activeView === "Profile" && Boolean(user), refetchOnWindowFocus: false });
   const alertRetryMutation = trpc.auth.alertRetry.useMutation({ onSuccess: (result) => { void alertHistoryQuery.refetch(); notify(result.message); }, onError: (error) => { void alertHistoryQuery.refetch(); notify(error.message); } });
-  useEffect(() => {
-    if (!user || activeView !== "Profile") return;
-    setProfileName(user.name ?? "Ravi Kumar");
-    setProfileLocation(user.farmLocation ?? "Kolar district, Karnataka");
-    setProfileLanguage(user.preferredLanguage === "Kannada" || user.preferredLanguage === "Hindi" ? user.preferredLanguage : "English");
-    setNotificationPhone(user.phoneNumber ?? "");
-    setNotificationChannel(user.notificationChannel ?? "in_app");
-  }, [user, activeView]);
   const diagnosisMutation = trpc.crop.diagnose.useMutation({
     onMutate: () => {
       setAnalysisStatus("Uploading and securing your photo...");
@@ -372,7 +388,7 @@ export default function Home() {
   });
   const farmerDisplayName = user?.name?.trim() || "Farmer";
   const farmerInitial = farmerDisplayName.charAt(0).toUpperCase();
-  const farmerLocationDisplay = user?.farmLocation?.trim() || "Kolar district, Karnataka";
+  const farmerLocationDisplay = farmLocation.displayLocation;
   const totalAcresDisplay = useMemo(() => {
     const list = plotsQuery.data ?? [];
     if (list.length === 0) return "2.4 acres";
@@ -417,18 +433,11 @@ export default function Home() {
   }, [diagnosisMutation.isPending]);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => setLiveLocation({ lat: position.coords.latitude, lng: position.coords.longitude }),
-      () => notify("Location access is unavailable. Showing your saved farm area."),
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
-
-  useEffect(() => {
     if (locationMarker.current) locationMarker.current.position = liveLocation;
-  }, [liveLocation]);
+    if (mapRef.current && !farmLocation.isFallbackCoords) {
+      mapRef.current.panTo(liveLocation);
+    }
+  }, [liveLocation, farmLocation.isFallbackCoords]);
 
   useEffect(() => {
     localStorage.setItem("namma-rytha-thresholds", JSON.stringify(thresholds));
@@ -592,7 +601,23 @@ export default function Home() {
             <div className="eyebrow light"><span className="live-dot" /> {tr("dashboard:hero.pulseLive")}</div>
             <h1>{tr("dashboard:hero.greeting", { name: farmerDisplayName })}</h1>
             <p>{tr("dashboard:hero.subtitle")}</p>
-            <div className="hero-meta"><MapPin size={15} /> {farmerLocationDisplay} · {totalAcresDisplay} <span className="meta-divider" /> {todayFormatted}</div>
+            <div className="hero-meta">
+              <MapPin size={15} />
+              <span>{farmerLocationDisplay}</span>
+              <button
+                type="button"
+                className="hero-location-refresh"
+                onClick={() => void farmLocation.refreshLocation({ force: true })}
+                disabled={farmLocation.loading}
+                title="Refresh GPS location"
+                aria-label="Refresh GPS location"
+              >
+                <RefreshCw size={12} className={farmLocation.loading ? "spin" : ""} />
+              </button>
+              <span>· {totalAcresDisplay}</span>
+              <span className="meta-divider" />
+              <span>{todayFormatted}</span>
+            </div>
             <button className="hero-button" onClick={speakAdvice}><Volume2 size={16} /> {tr("dashboard:hero.listenAdvice")}</button>
           </div>
           <div className="hero-weather">
@@ -608,6 +633,31 @@ export default function Home() {
           <div className="priority-footer"><span><Clock3 size={14} /> {tr("dashboard:hero.recommendedBy")}</span><button onClick={() => goTo("Diagnose crop")}>{tr("dashboard:hero.inspectCrop")} <ChevronRight size={15} /></button></div>
         </div>
       </section>
+
+      {farmLocation.error && !dismissLocationBanner && (
+        <div className="location-alert-bar" role="status">
+          <CircleAlert size={16} />
+          <span>{farmLocation.error}</span>
+          <div className="location-alert-actions">
+            <button type="button" className="tiny-button" onClick={() => void farmLocation.refreshLocation({ force: true })}>
+              <RefreshCw size={12} /> Retry GPS
+            </button>
+            <button
+              type="button"
+              className="tiny-button"
+              onClick={() => {
+                setManualLocationDraft(farmLocation.displayLocation.startsWith("Detecting") || farmLocation.displayLocation.startsWith("Location") ? "" : farmLocation.displayLocation);
+                setShowManualLocationModal(true);
+              }}
+            >
+              Set manually
+            </button>
+            <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setDismissLocationBanner(true)}>
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="metric-grid">
         <MetricCard icon={Droplets} label={tr("dashboard:metrics.waterSaved")} value="1,240 L" note={tr("dashboard:metrics.waterSavedNote")} trend="up" tone="blue" />
@@ -703,7 +753,7 @@ export default function Home() {
     if (activeView === "Analytics") return <FeaturePage eyebrow={tr("reports:analytics.pageEyebrow")} title={tr("reports:analytics.pageTitle")} description={tr("reports:analytics.pageDescription")} icon={BarChart3} tone="blue"><div className="metric-grid"><MetricCard icon={CheckCircle2} label={tr("reports:analytics.tasksCompleted")} value={`${completedTasks}/${tasks.length}`} note={tr("reports:analytics.thisWeek")} trend="up" tone="green" /><MetricCard icon={IndianRupee} label={tr("reports:analytics.trackedExpenses")} value={formatCurrency(expenses.reduce((sum, item) => sum + item.amount, 0), i18n.language)} note={tr("reports:analytics.acrossAllPlots")} trend="neutral" tone="amber" /><MetricCard icon={TrendingUp} label={tr("reports:analytics.cropValueTrend")} value="+8.4%" note={tr("reports:analytics.vsLastWeek")} trend="up" tone="blue" /></div><ChartCard title={tr("reports:analytics.chartTitle")} labels={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]} values={[42, 54, 48, 67, 72, 76, 84]} color="blue" /><div className="panel"><div className="panel-title"><div><h3>{tr("reports:analytics.recommendedFocus")}</h3><p>{tr("reports:analytics.focusSub")}</p></div><Sparkles size={20} /></div><div className="recommendation-facts"><span>{tr("reports:analytics.bestAction")} <strong>{tr("reports:analytics.finishIrrigation")}</strong></span><span>{tr("reports:analytics.strongestCrop")} <strong>{tr("common:crops.Tomato")}</strong></span><span>{tr("reports:analytics.nextReview")} <strong>{tr("reports:analytics.tomorrowMorning")}</strong></span></div></div></FeaturePage>;
     if (activeView === "Notifications") return <FeaturePage eyebrow={tr("notifications:pageEyebrow")} title={tr("notifications:pageTitle")} description={tr("notifications:pageDescription")} icon={Bell} tone="amber"><div className="notification-settings-layout"><div className="panel"><NotificationCenter rainProbability={rainProbability} temperature={weatherQuery.data?.temperature ?? 28} onClose={() => setActiveView("Overview")} /></div><section className="panel notification-preferences"><div className="panel-title"><div><span className="eyebrow">{tr("notifications:deliveryEyebrow")}</span><h3>{tr("notifications:deliveryTitle")}</h3><p>{tr("notifications:deliverySub")}</p></div><Bell className="muted-icon" size={21} /></div><label>{tr("notifications:phoneLabel")}<input value={notificationPhone} onChange={(event) => setNotificationPhone(event.target.value)} placeholder="+919876543210" /></label><label>{tr("notifications:channelLabel")}<select value={notificationChannel} onChange={(event) => setNotificationChannel(event.target.value as typeof notificationChannel)}><option value="in_app">{tr("notifications:inAppOnly")}</option><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></label><div className="notification-preference-actions"><button className="primary-button" onClick={() => notificationPreferencesMutation.mutate({ phoneNumber: notificationPhone || null, notificationChannel })} disabled={notificationPreferencesMutation.isPending}>{tr("settings:profilePage.savePrefs")}</button>{notificationChannel !== "in_app" && <button className="secondary-button" onClick={() => notificationTestMutation.mutate({ channel: notificationChannel, phoneNumber: notificationPhone })} disabled={notificationTestMutation.isPending}>{tr("settings:profilePage.sendTest")}</button>}</div><small className="data-source-note">{tr("notifications:twilioDisclaimer")}</small></section></div></FeaturePage>;
     if (activeView === "Profile") return <FeaturePage eyebrow={tr("settings:profilePage.pageEyebrow")} title={tr("settings:profilePage.pageTitle")} description={tr("settings:profilePage.pageDescription")} icon={UserRound} tone="green"><FarmerProfile name={profileName} location={profileLocation} language={profileLanguage} avatarUrl={user?.avatarUrl ?? null} phone={notificationPhone} channel={notificationChannel} profileSaving={profileMutation.isPending} avatarSaving={avatarMutation.isPending} saving={notificationPreferencesMutation.isPending} testing={notificationTestMutation.isPending} alertHistory={alertHistoryQuery.data ?? []} alertHistoryLoading={alertHistoryQuery.isLoading} signInHistory={signInHistoryQuery.data ?? []} signInHistoryLoading={signInHistoryQuery.isLoading} retryingId={alertRetryMutation.isPending ? alertRetryMutation.variables?.id ?? null : null} onNameChange={setProfileName} onLocationChange={setProfileLocation} onLanguageChange={setProfileLanguage} onAvatarUpload={(imageDataUrl) => avatarMutation.mutate({ imageDataUrl })} onPhoneChange={setNotificationPhone} onChannelChange={setNotificationChannel} onProfileSave={() => profileMutation.mutate({ name: profileName, farmLocation: profileLocation, preferredLanguage: profileLanguage })} onSave={() => notificationPreferencesMutation.mutate({ phoneNumber: notificationPhone || null, notificationChannel })} onTest={() => notificationTestMutation.mutate({ channel: notificationChannel as "sms" | "whatsapp", phoneNumber: notificationPhone })} onRetry={(id) => alertRetryMutation.mutate({ id })} onToast={notify} onResetScrollPositions={resetScrollPositions} /></FeaturePage>;
-    return <FeaturePage eyebrow={tr("farm:myFarm.eyebrow")} title={tr("farm:myFarm.title")} description={tr("farm:myFarm.description")} icon={Sprout} tone="green"><div className="farm-overview"><div className="farm-map live-map"><MapView initialCenter={liveLocation} initialZoom={14} onMapReady={(map) => { mapRef.current = map; if (window.google?.maps?.marker) { locationMarker.current = new google.maps.marker.AdvancedMarkerElement({ map, position: liveLocation, title: tr("farm:myFarm.liveLocation") }); } setupMapOverlays(map); }} /><div className="map-live-chip"><span className="online-dot" /> {tr("farm:myFarm.liveLocation")}</div><select className="map-crop-filter" value={mapCropFilter} onChange={(event) => setMapCropFilter(event.target.value as typeof mapCropFilter)}><option value="All crops">{tr("farm:myFarm.allCrops")}</option><option value="Tomato">{tr("common:crops.Tomato")}</option><option value="Ragi">{tr("common:crops.Ragi")}</option></select><div className="map-overlay-controls">{(Object.keys(farmOverlays) as OverlayName[]).map((name) => <button key={name} className={`overlay-toggle ${overlayVisibility[name] ? "active" : ""}`} onClick={() => setOverlayVisibility((current) => ({ ...current, [name]: !current[name] }))}><span style={{ backgroundColor: farmOverlays[name].color }} /> {name === "weather" ? tr("farm:myFarm.weather") : name === "irrigation" ? tr("farm:myFarm.irrigation") : tr("farm:myFarm.soilSensors")}</button>)}</div><div className="map-label label-one"><MapPin size={14} /> Plot A · {tr("common:crops.Tomato")}</div><div className="map-label label-two"><MapPin size={14} /> Plot B · {tr("common:crops.Ragi")}</div><div className="heatmap-legend"><span>{tr("farm:myFarm.heatmapTitle")}</span><div className="heatmap-gradient" /><div className="heatmap-labels"><small>{tr("farm:myFarm.dry")}</small><small>{tr("farm:myFarm.optimal")}</small><small>{tr("farm:myFarm.wet")}</small></div></div>{sensorTooltip && <div className="sensor-tooltip"><button onClick={() => setSensorTooltip(null)} aria-label={tr("common:close")}><X size={13} /></button><span className="eyebrow">{tr("farm:myFarm.sensorDetail")}</span><strong>{sensorTooltip.plot}</strong><div className="sensor-reading"><span>{tr("farm:myFarm.moisture")} <b>{sensorTooltip.moisture}%</b></span><span>{tr("farm:myFarm.health")} <b>{sensorTooltip.health}/100</b></span><span>{tr("farm:myFarm.temp")} <b>{sensorTooltip.temperature}°</b></span></div><span className="sensor-chart-title">{tr("farm:myFarm.trend7d")}</span><div className="sensor-chart">{sensorTooltip.trend.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${Math.max(18, value * 1.25)}%` }} title={`${value}%`} />)}</div><div className="sensor-chart-labels"><small>−6d</small><small>{tr("dashboard:day.now")}</small></div><small>{tr("common:updated")} {sensorTooltip.updated} · {tr("farm:myFarm.tapMarker")}</small></div>}</div><div className="farm-details"><div className="farm-detail-header"><div><span className="eyebrow">{farmerLocationDisplay.toUpperCase()}</span><h3>{totalAcresDisplay}</h3><p><MapPin size={14} /> {farmerLocationDisplay}</p></div><button className="secondary-button" onClick={() => setShowPlotModal(true)}><Plus size={16} /> {tr("farm:myFarm.addPlot")}</button></div><div className="overlay-insights"><OverlayInsight name={tr("farm:myFarm.weather")} detail={tr("farm:myFarm.weatherDetail", { temp: weatherQuery.data?.temperature ?? 28, rain: rainProbability })} tone="weather" /><OverlayInsight name={tr("farm:myFarm.irrigation")} detail={tr("farm:myFarm.irrigationDetail", { status: tr(`irrigation:statuses.${irrigationRecommendation.status}`), moisture: soilMoisture })} tone="irrigation" /><OverlayInsight name={tr("farm:myFarm.soilSensors")} detail={tr("farm:myFarm.soilDetail")} tone="soil" /></div><div className="plot-list"><div className="plot-card"><span className="plot-avatar tomato">T</span><div><strong>Plot A · {tr("common:crops.Tomato")}</strong><small>1.6 {tr("common:acres")} · {tr("common:stages.Flowering")}</small></div><span className="plot-health">{tr("dashboard:metrics.healthy")} · 86%</span><ChevronRight size={16} /></div><div className="plot-card"><span className="plot-avatar ragi">R</span><div><strong>Plot B · {tr("common:crops.Ragi")}</strong><small>0.8 {tr("common:acres")} · {tr("common:stages.Tillering")}</small></div><span className="plot-health">{tr("crop:soilHealth.good")} · 74%</span><ChevronRight size={16} /></div></div></div></div></FeaturePage>;
+    return <FeaturePage eyebrow={tr("farm:myFarm.eyebrow")} title={tr("farm:myFarm.title")} description={tr("farm:myFarm.description")} icon={Sprout} tone="green"><div className="farm-overview"><div className="farm-map live-map"><MapView initialCenter={liveLocation} initialZoom={14} onMapReady={(map) => { mapRef.current = map; if (window.google?.maps?.marker) { locationMarker.current = new google.maps.marker.AdvancedMarkerElement({ map, position: liveLocation, title: tr("farm:myFarm.liveLocation") }); } setupMapOverlays(map); }} /><div className="map-live-chip"><span className="online-dot" /> {farmLocation.loading ? "Detecting…" : tr("farm:myFarm.liveLocation")}</div><select className="map-crop-filter" value={mapCropFilter} onChange={(event) => setMapCropFilter(event.target.value as typeof mapCropFilter)}><option value="All crops">{tr("farm:myFarm.allCrops")}</option><option value="Tomato">{tr("common:crops.Tomato")}</option><option value="Ragi">{tr("common:crops.Ragi")}</option></select><div className="map-overlay-controls">{(Object.keys(farmOverlays) as OverlayName[]).map((name) => <button key={name} className={`overlay-toggle ${overlayVisibility[name] ? "active" : ""}`} onClick={() => setOverlayVisibility((current) => ({ ...current, [name]: !current[name] }))}><span style={{ backgroundColor: farmOverlays[name].color }} /> {name === "weather" ? tr("farm:myFarm.weather") : name === "irrigation" ? tr("farm:myFarm.irrigation") : tr("farm:myFarm.soilSensors")}</button>)}</div><div className="map-label label-one"><MapPin size={14} /> Plot A · {tr("common:crops.Tomato")}</div><div className="map-label label-two"><MapPin size={14} /> Plot B · {tr("common:crops.Ragi")}</div><div className="heatmap-legend"><span>{tr("farm:myFarm.heatmapTitle")}</span><div className="heatmap-gradient" /><div className="heatmap-labels"><small>{tr("farm:myFarm.dry")}</small><small>{tr("farm:myFarm.optimal")}</small><small>{tr("farm:myFarm.wet")}</small></div></div>{sensorTooltip && <div className="sensor-tooltip"><button onClick={() => setSensorTooltip(null)} aria-label={tr("common:close")}><X size={13} /></button><span className="eyebrow">{tr("farm:myFarm.sensorDetail")}</span><strong>{sensorTooltip.plot}</strong><div className="sensor-reading"><span>{tr("farm:myFarm.moisture")} <b>{sensorTooltip.moisture}%</b></span><span>{tr("farm:myFarm.health")} <b>{sensorTooltip.health}/100</b></span><span>{tr("farm:myFarm.temp")} <b>{sensorTooltip.temperature}°</b></span></div><span className="sensor-chart-title">{tr("farm:myFarm.trend7d")}</span><div className="sensor-chart">{sensorTooltip.trend.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${Math.max(18, value * 1.25)}%` }} title={`${value}%`} />)}</div><div className="sensor-chart-labels"><small>−6d</small><small>{tr("dashboard:day.now")}</small></div><small>{tr("common:updated")} {sensorTooltip.updated} · {tr("farm:myFarm.tapMarker")}</small></div>}</div><div className="farm-details"><div className="farm-detail-header"><div><span className="eyebrow">{farmerLocationDisplay.toUpperCase()}</span><h3>{totalAcresDisplay}</h3><p><MapPin size={14} /> {farmerLocationDisplay}</p></div><div className="fm-form-actions"><button className="secondary-button" onClick={() => void farmLocation.refreshLocation({ force: true })} disabled={farmLocation.loading}><RefreshCw size={14} className={farmLocation.loading ? "spin" : ""} /> {farmLocation.loading ? "Detecting…" : "Refresh GPS"}</button><button className="secondary-button" onClick={() => setShowManualLocationModal(true)}>Set manually</button><button className="secondary-button" onClick={() => setShowPlotModal(true)}><Plus size={16} /> {tr("farm:myFarm.addPlot")}</button></div></div><div className="overlay-insights"><OverlayInsight name={tr("farm:myFarm.weather")} detail={tr("farm:myFarm.weatherDetail", { temp: weatherQuery.data?.temperature ?? 28, rain: rainProbability })} tone="weather" /><OverlayInsight name={tr("farm:myFarm.irrigation")} detail={tr("farm:myFarm.irrigationDetail", { status: tr(`irrigation:statuses.${irrigationRecommendation.status}`), moisture: soilMoisture })} tone="irrigation" /><OverlayInsight name={tr("farm:myFarm.soilSensors")} detail={tr("farm:myFarm.soilDetail")} tone="soil" /></div><div className="plot-list"><div className="plot-card"><span className="plot-avatar tomato">T</span><div><strong>Plot A · {tr("common:crops.Tomato")}</strong><small>1.6 {tr("common:acres")} · {tr("common:stages.Flowering")}</small></div><span className="plot-health">{tr("dashboard:metrics.healthy")} · 86%</span><ChevronRight size={16} /></div><div className="plot-card"><span className="plot-avatar ragi">R</span><div><strong>Plot B · {tr("common:crops.Ragi")}</strong><small>0.8 {tr("common:acres")} · {tr("common:stages.Tillering")}</small></div><span className="plot-health">{tr("crop:soilHealth.good")} · 74%</span><ChevronRight size={16} /></div></div></div></div></FeaturePage>;
   };
 
   return (
@@ -725,6 +775,44 @@ export default function Home() {
       {showTaskModal && <Modal title={tr("dashboard:modals.addTaskTitle")} onClose={() => setShowTaskModal(false)}><label>{tr("dashboard:modals.taskName")}<input value={customTask.title} onChange={(event) => setCustomTask((current) => ({ ...current, title: event.target.value }))} placeholder={tr("dashboard:modals.taskPlaceholder")} /></label><label>{tr("dashboard:modals.taskWhen")}<input value={customTask.detail} onChange={(event) => setCustomTask((current) => ({ ...current, detail: event.target.value }))} placeholder={tr("dashboard:modals.taskWhenPlaceholder")} /></label><button className="primary-button full-width" onClick={addTask}>{tr("dashboard:modals.saveReminder")} <Check size={16} /></button></Modal>}
       {showExpenseModal && <Modal title={tr("dashboard:modals.addExpenseTitle")} onClose={() => setShowExpenseModal(false)}><label>{tr("dashboard:modals.expenseCategory")}<input value={expenseDraft.label} onChange={(event) => setExpenseDraft((current) => ({ ...current, label: event.target.value }))} placeholder={tr("dashboard:modals.expensePlaceholder")} /></label><label>{tr("dashboard:modals.expenseAmount")}<input type="number" value={expenseDraft.amount} onChange={(event) => setExpenseDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="1500" /></label><button className="primary-button full-width" onClick={addExpense}>{tr("dashboard:modals.saveExpense")} <Check size={16} /></button></Modal>}
       {showPlotModal && <Modal title={tr("dashboard:modals.addPlotTitle")} onClose={() => setShowPlotModal(false)}><label>{tr("dashboard:modals.plotName")}<input value={plotName} onChange={(event) => setPlotName(event.target.value)} placeholder={tr("dashboard:modals.plotPlaceholder")} /></label><label>{tr("dashboard:modals.growingCrop")}<select value={plotCrop} onChange={(event) => setPlotCrop(event.target.value)}><option value="Tomato">{tr("common:crops.Tomato")}</option><option value="Ragi">{tr("common:crops.Ragi")}</option><option value="Maize">{tr("common:crops.Maize")}</option></select></label><label>{tr("dashboard:modals.areaAcres")}<input type="number" min="1" value={plotArea} onChange={(event) => setPlotArea(event.target.value)} /></label><button className="primary-button full-width" disabled={createPlotMutation.isPending} onClick={() => createPlotMutation.mutate({ name: plotName || "New plot", crop: plotCrop, areaAcres: Number(plotArea), soilType: "Loamy", growthStage: "Seedling" })}>{createPlotMutation.isPending ? tr("common:saving") : tr("dashboard:modals.savePlot")} <Check size={16} /></button></Modal>}
+      {showManualLocationModal && (
+        <Modal title="Set Farm Location" onClose={() => setShowManualLocationModal(false)}>
+          <label>
+            Village, Taluk, District
+            <input
+              value={manualLocationDraft}
+              onChange={(event) => setManualLocationDraft(event.target.value)}
+              placeholder="e.g. Doddaballapur, Bengaluru Rural, Karnataka"
+            />
+          </label>
+          <div className="fm-form-actions" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                void farmLocation.refreshLocation({ force: true });
+                setShowManualLocationModal(false);
+              }}
+            >
+              <RefreshCw size={14} /> Use GPS instead
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              style={{ flex: 1 }}
+              disabled={manualLocationDraft.trim().length < 2}
+              onClick={() => {
+                farmLocation.setManualLocation(manualLocationDraft);
+                setShowManualLocationModal(false);
+                setDismissLocationBanner(true);
+                notify(`Farm location updated to ${manualLocationDraft.trim()}`);
+              }}
+            >
+              <Check size={15} /> Save location
+            </button>
+          </div>
+        </Modal>
+      )}
       {showDiagnosisModal && <DiagnosisModal image={diagnosisImage} setImage={setDiagnosisImage} setVisualHints={setDiagnosisVisualHints} loading={diagnosisMutation.isPending} status={analysisStatus} selectedPlot={selectedPlot} onClose={() => setShowDiagnosisModal(false)} onSubmit={(crop, plotName, symptoms, language) => { setSelectedPlot(plotName); setShowDiagnosisModal(false); diagnosisMutation.mutate({ imageDataUrl: diagnosisImage, crop, plotName, symptoms, language, visualHints: diagnosisVisualHints }); }} />}
       {inboxOpen && <AgronomistInbox requests={inboxQuery.data ?? []} loading={inboxQuery.isLoading} onRead={(id) => markInboxReadMutation.mutate({ id })} onSubmit={submitInboxRequest} onClose={() => setInboxOpen(false)} />}
       {toast && <div className="toast"><CheckCircle2 size={17} /> {toast}</div>}

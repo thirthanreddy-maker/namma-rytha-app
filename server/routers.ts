@@ -15,6 +15,7 @@ import { createHeartbeatJob } from "./_core/heartbeat";
 import { sendFarmerAlert } from "./notifications";
 import { getMarketPrices } from "./market";
 import { fetchOpenMeteoForecast } from "./engines/weatherService";
+import { reverseGeocodeCoordinates } from "./engines/locationEngine";
 import { generateAssistantReply, hasConfiguredLLM, runCropDiagnosisAI } from "./engines/aiEngine";
 import { analyzeCropFailure, buildSatellitePlotInsights, compareCropsAndRecommendSwitch, computeDiseaseRiskForecast, computeWaterBudgetPlan, evaluateMandiOffer, runDigitalTwinSimulation } from "./engines/farmCalculators";
 import { recommendCropRotation, buildSeasonalFinancialForecast, detectFarmAnomalies } from "./engines/farmCalculators2";
@@ -714,6 +715,16 @@ export const appRouter = router({
       areaAcres: z.number().min(0.25).max(1000),
       season: z.string().trim().min(1).max(40),
     })).mutation(({ input }) => buildSeasonalFinancialForecast(input)),
+  }),
+
+  // CENTRALIZED LOCATION REVERSE GEOCODING
+  location: router({
+    reverseGeocode: publicProcedure
+      .input(z.object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+      }))
+      .query(({ input }) => reverseGeocodeCoordinates(input.lat, input.lng)),
   }),
 });
 

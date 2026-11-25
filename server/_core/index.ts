@@ -37,7 +37,7 @@ async function startServer() {
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=()");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=(self)");
     res.setHeader("X-Frame-Options", "DENY");
     const forwardedProto = req.headers["x-forwarded-proto"];
     const isHttps = req.protocol === "https" || (Array.isArray(forwardedProto) ? forwardedProto : forwardedProto?.split(",") ?? []).some((proto) => proto.trim().toLowerCase() === "https");

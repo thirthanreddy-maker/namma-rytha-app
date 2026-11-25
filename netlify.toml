@@ -26,6 +26,7 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
+    Permissions-Policy = "camera=(), microphone=(self), geolocation=(self)"
 
 [[headers]]
   for = "/assets/*"
