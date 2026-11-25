@@ -1,4 +1,4 @@
-const CACHE_NAME = "namma-rytha-v2";
+const CACHE_NAME = "namma-rytha-v3";
 const STATIC_ASSETS = ["/", "/index.html", "/auth", "/app"];
 
 self.addEventListener("install", (event) => {

@@ -4,12 +4,11 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-
-const Landing = lazy(() => import("./pages/Landing"));
-const Auth = lazy(() => import("./pages/Auth"));
-const Home = lazy(() => import("./pages/Home"));
+import Landing from "./pages/Landing";
+import Auth from "./pages/Auth";
+import Home from "./pages/Home";
 
 function RouteLoading() { return <div className="app-loading" role="status" aria-live="polite"><span className="loading-mark">✦</span><strong>Loading Namma Rytha…</strong></div>; }
 

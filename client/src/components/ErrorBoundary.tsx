@@ -64,12 +64,6 @@ class ErrorBoundary extends Component<Props, State> {
         </div>
       );
     }
-              Reload Page
-            </button>
-          </div>
-        </div>
-      );
-    }
 
     return this.props.children;
   }

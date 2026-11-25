@@ -8,6 +8,13 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", (event) => {
+    console.warn("[Vite] Preload error detected, reloading page...", event);
+    window.location.reload();
+  });
+}
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
