@@ -17,8 +17,9 @@ import { getMarketPrices } from "./market";
 import { fetchOpenMeteoForecast } from "./engines/weatherService";
 import { generateAssistantReply, hasConfiguredLLM, runCropDiagnosisAI } from "./engines/aiEngine";
 import { analyzeCropFailure, buildSatellitePlotInsights, compareCropsAndRecommendSwitch, computeDiseaseRiskForecast, computeWaterBudgetPlan, evaluateMandiOffer, runDigitalTwinSimulation } from "./engines/farmCalculators";
+import { recommendCropRotation, buildSeasonalFinancialForecast, detectFarmAnomalies } from "./engines/farmCalculators2";
 import { resolveCropProfile } from "./engines/agronomyData";
-import { corroborateRegionalIntel, createRegionalIntelReport, createWasteInquiry, createWasteListing, listCropFailureAnalyses, listDigitalTwinScenarios, listRegionalIntelReports, listWasteExchange, listWaterUsageLogs, logWaterUsage, saveCropFailureAnalysis, saveDigitalTwinScenario, updateWasteListingStatus, verifyRegionalIntelByAdmin } from "./pgStore";
+import { corroborateRegionalIntel, createRegionalIntelReport, createWasteInquiry, createWasteListing, listCropFailureAnalyses, listDigitalTwinScenarios, listRegionalIntelReports, listWasteExchange, listWaterUsageLogs, logWaterUsage, saveCropFailureAnalysis, saveDigitalTwinScenario, updateWasteListingStatus, verifyRegionalIntelByAdmin, listFarmMemory, createFarmMemory, updateFarmMemory, deleteFarmMemory, listCooperatives, createCooperative, joinCooperative, getUserCooperatives, createBulkPurchaseRequest, listBulkPurchaseRequests, createHarvestBatch, listHarvestBatches, addTraceabilityEvent, listAnomalyEvents, createAnomalyEvent, resolveAnomalyEvent, getFarmTodayActions, markTodayActionDone, saveMandiOffer, listMandiOffers, saveProfitPlan, listProfitPlans, addTreatmentLog, listTreatmentLogs } from "./pgStore";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Administrator access is required." });
@@ -381,6 +382,14 @@ export const appRouter = router({
       return computeDiseaseRiskForecast(input.crop, weather, history);
     }),
     aiStatus: protectedProcedure.query(() => ({ liveLlmConfigured: hasConfiguredLLM() })),
+    treatments: protectedProcedure.query(({ ctx }) => listTreatmentLogs(ctx.user.id)),
+    logTreatment: protectedProcedure.input(z.object({
+      plotName: z.string().trim().min(1).max(120),
+      crop: z.string().trim().min(1).max(80),
+      conditionName: z.string().trim().min(1).max(255),
+      treatmentApplied: z.string().trim().min(2).max(500),
+      outcome: z.string().trim().min(1).max(64).default("monitoring"),
+    })).mutation(({ ctx, input }) => addTreatmentLog(ctx.user.id, input)),
   }),
 
   // FEATURE 3: SMART IRRIGATION & WATER BUDGET PLANNER
@@ -425,6 +434,15 @@ export const appRouter = router({
       productionCostTotal: z.number().min(0).max(100_000_000),
       transportRatePerKmPerQuintal: z.number().min(0.5).max(50).default(3.5),
     })).query(({ input }) => evaluateMandiOffer(input)),
+    offerHistory: protectedProcedure.query(({ ctx }) => listMandiOffers(ctx.user.id)),
+    saveOffer: protectedProcedure.input(z.object({
+      crop: z.string().min(1).max(80),
+      quantityQ: z.number().int().min(1).max(10000),
+      buyerOfferPerQ: z.number().int().min(100).max(200000),
+      verdict: z.string().min(1).max(32),
+      bestMandi: z.string().min(1).max(120),
+      netProfit: z.number().int(),
+    })).mutation(({ ctx, input }) => saveMandiOffer(ctx.user.id, input)),
   }),
 
   // FEATURE 5: MULTI-CROP PROFIT SIMULATOR
@@ -448,6 +466,14 @@ export const appRouter = router({
         riskAppetite: z.enum(["Conservative", "Balanced", "High-Return"]),
       }),
     })).mutation(({ input }) => compareCropsAndRecommendSwitch(input.crops, input.constraints)),
+    savedPlans: protectedProcedure.query(({ ctx }) => listProfitPlans(ctx.user.id)),
+    savePlan: protectedProcedure.input(z.object({
+      crop: z.string().min(1).max(80),
+      scenarioMode: z.string().min(1).max(24).default("Expected"),
+      budgetTotal: z.number().int().min(1000),
+      expectedNetProfit: z.number().int(),
+      roiPct: z.number().int(),
+    })).mutation(({ ctx, input }) => saveProfitPlan(ctx.user.id, input)),
   }),
 
   // FEATURE 7: SATELLITE CROP HEALTH MONITORING
@@ -457,8 +483,18 @@ export const appRouter = router({
         getUserPlots(ctx.user.id),
         fetchOpenMeteoForecast(input?.lat ?? 13.135, input?.lng ?? 78.132),
       ]);
-      return buildSatellitePlotInsights(plots, weather, input?.lat ?? 13.135, input?.lng ?? 78.132);
+      const result = buildSatellitePlotInsights(plots, weather, input?.lat ?? 13.135, input?.lng ?? 78.132);
+      return { ...result, dataMode: result.configuredSentinel ? ("live" as const) : ("modeled-estimate" as const) };
     }),
+  }),
+
+  // RYTHA 2.0 — DASHBOARD "YOUR FARM TODAY"
+  dashboard: router({
+    farmToday: protectedProcedure.query(({ ctx }) => getFarmTodayActions(ctx.user.id)),
+    markActionDone: protectedProcedure.input(z.object({
+      actionId: z.string().min(1).max(80),
+      taskId: z.number().int().positive().optional(),
+    })).mutation(({ ctx, input }) => markTodayActionDone(ctx.user.id, input.actionId, input.taskId)),
   }),
 
   // FEATURE 8: FARM WASTE EXCHANGE
@@ -545,6 +581,138 @@ export const appRouter = router({
       }
       return analysis;
     }),
+  }),
+
+  // RYTHA 2.0 — FARM MEMORY
+  farmMemory: router({
+    list: protectedProcedure.query(({ ctx }) => listFarmMemory(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      recordType: z.string().trim().min(1).max(32).default("harvest"),
+      crop: z.string().trim().min(1).max(80),
+      plotName: z.string().trim().min(1).max(120).default("General"),
+      sowingDate: z.string().nullable().optional(),
+      harvestDate: z.string().nullable().optional(),
+      quantityQ: z.number().min(0).max(100000).nullable().optional(),
+      pricePerQ: z.number().min(0).max(100000).nullable().optional(),
+      notes: z.string().max(2000).nullable().optional(),
+    })).mutation(({ ctx, input }) => createFarmMemory(ctx.user.id, {
+      recordType: input.recordType,
+      crop: input.crop,
+      plotName: input.plotName,
+      sowingDate: input.sowingDate ?? null,
+      harvestDate: input.harvestDate ?? null,
+      quantityQ: input.quantityQ ?? null,
+      pricePerQ: input.pricePerQ ?? null,
+      notes: input.notes ?? null,
+    })),
+    update: protectedProcedure.input(z.object({
+      id: z.number().int().positive(),
+      recordType: z.string().trim().min(1).max(32).optional(),
+      crop: z.string().trim().min(1).max(80).optional(),
+      plotName: z.string().trim().min(1).max(120).optional(),
+      sowingDate: z.string().nullable().optional(),
+      harvestDate: z.string().nullable().optional(),
+      quantityQ: z.number().min(0).max(100000).nullable().optional(),
+      pricePerQ: z.number().min(0).max(100000).nullable().optional(),
+      notes: z.string().max(2000).nullable().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const { id, ...rest } = input;
+      const updated = await updateFarmMemory(ctx.user.id, id, rest);
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Record not found." });
+      return updated;
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await deleteFarmMemory(ctx.user.id, input.id);
+      return { success: true as const };
+    }),
+  }),
+
+  // RYTHA 2.0 — CROP ROTATION
+  cropRotation: router({
+    recommend: protectedProcedure.input(z.object({
+      previousCrop: z.string().trim().min(1).max(80),
+      soilType: z.string().trim().min(1).max(80),
+      soilPh: z.number().min(3.5).max(10),
+      irrigationLevel: z.string().trim().min(1).max(80),
+      diseaseHistory: z.string().max(400).default(""),
+      district: z.string().trim().min(1).max(80).default("Kolar"),
+    })).mutation(({ input }) => recommendCropRotation(input)),
+  }),
+
+  // RYTHA 2.0 — COOPERATIVES
+  cooperative: router({
+    list: protectedProcedure.query(() => listCooperatives()),
+    myGroups: protectedProcedure.query(({ ctx }) => getUserCooperatives(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      name: z.string().trim().min(2).max(160),
+      description: z.string().trim().max(1000).default(""),
+      district: z.string().trim().min(1).max(80).default("Kolar"),
+    })).mutation(({ ctx, input }) => createCooperative(ctx.user.id, input)),
+    join: protectedProcedure.input(z.object({ coopId: z.number().int().positive() })).mutation(({ ctx, input }) => joinCooperative(input.coopId, ctx.user.id)),
+    bulkPurchase: router({
+      list: protectedProcedure.query(({ ctx }) => listBulkPurchaseRequests(ctx.user.id)),
+      create: protectedProcedure.input(z.object({
+        coopId: z.number().int().positive(),
+        itemName: z.string().trim().min(2).max(160),
+        quantityKg: z.number().int().min(1).max(1000000),
+        unitPrice: z.number().min(0).max(100000).default(0),
+        preferredVendor: z.string().trim().max(160).nullable().optional(),
+      })).mutation(({ ctx, input }) => createBulkPurchaseRequest({ ...input, requestedBy: ctx.user.id, preferredVendor: input.preferredVendor ?? null })),
+    }),
+  }),
+
+  // RYTHA 2.0 — TRACEABILITY
+  traceability: router({
+    list: protectedProcedure.query(({ ctx }) => listHarvestBatches(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      crop: z.string().trim().min(1).max(80),
+      plotName: z.string().trim().min(1).max(120),
+      harvestDate: z.string().min(6).max(20),
+      quantityKg: z.number().int().min(1).max(1000000),
+      qualityGrade: z.string().trim().min(1).max(16).default("A"),
+      certifications: z.array(z.string().trim().max(80)).max(10).default([]),
+    })).mutation(({ ctx, input }) => createHarvestBatch(ctx.user.id, input)),
+    addEvent: protectedProcedure.input(z.object({
+      batchId: z.number().int().positive(),
+      eventType: z.string().trim().min(1).max(48),
+      location: z.string().trim().min(1).max(160),
+      note: z.string().max(500).nullable().optional(),
+    })).mutation(({ input }) => addTraceabilityEvent(input.batchId, { eventType: input.eventType, location: input.location, note: input.note ?? null })),
+  }),
+
+  // RYTHA 2.0 — ANOMALY DETECTION
+  anomaly: router({
+    list: protectedProcedure.query(({ ctx }) => listAnomalyEvents(ctx.user.id)),
+    resolve: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const ok = await resolveAnomalyEvent(input.id, ctx.user.id);
+      if (!ok) throw new TRPCError({ code: "NOT_FOUND", message: "Anomaly event not found." });
+      return { success: true as const };
+    }),
+    detect: protectedProcedure.mutation(async ({ ctx }) => {
+      const readings = await (await import("./db")).getLatestSensorReadings(ctx.user.id);
+      if (!readings.length) return { detected: 0 };
+      const anomalies = detectFarmAnomalies(readings.map(r => ({
+        plotId: r.plotId,
+        moisture: r.moisture,
+        temperature: r.temperature,
+        battery: r.battery,
+        recordedAt: r.recordedAt,
+      })));
+      for (const a of anomalies) {
+        await createAnomalyEvent(ctx.user.id, a.plotId, a.anomalyType, a.severity, a.description);
+      }
+      return { detected: anomalies.length };
+    }),
+  }),
+
+  // RYTHA 2.0 — FINANCIAL FORECAST
+  finance: router({
+    forecast: protectedProcedure.input(z.object({
+      crop: z.string().trim().min(1).max(80),
+      plotName: z.string().trim().min(1).max(120),
+      areaAcres: z.number().min(0.25).max(1000),
+      season: z.string().trim().min(1).max(40),
+    })).mutation(({ input }) => buildSeasonalFinancialForecast(input)),
   }),
 });
 

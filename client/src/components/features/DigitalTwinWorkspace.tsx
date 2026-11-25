@@ -316,21 +316,25 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">SAVED WHAT-IF SCENARIOS</span>
-              <h3>Previously simulated plans</h3>
+              <span className="eyebrow">SAVED WHAT-IF SCENARIOS &amp; ACTUAL VS PREDICTED</span>
+              <h3>Scenario timeline &amp; seasonal performance</h3>
+              <p>Compare saved simulation predictions against actual plot outcomes. Simulation confidence is rule-based agronomic estimation.</p>
             </div>
             <TrendingUp size={19} className="muted-icon" />
           </div>
           <div className="saved-scenarios-list">
             {overviewQuery.data!.scenarios.map((s) => {
-              const res = s.results as { simulated?: { crop?: string; netProfit?: number; productionQuintals?: number } };
+              const res = s.results as { baseline?: { productionQuintals?: number; netProfit?: number }; simulated?: { crop?: string; netProfit?: number; productionQuintals?: number; expenses?: number } };
+              const baseQ = res.baseline?.productionQuintals ?? 0;
+              const simQ = res.simulated?.productionQuintals ?? 0;
+              const deltaQ = Number((simQ - baseQ).toFixed(1));
               return (
                 <div key={s.id} className="saved-scenario-row">
                   <div>
                     <strong>{s.scenarioName}</strong>
-                    <small>{s.plotName} · {res.simulated?.crop ?? s.baseCrop}</small>
+                    <small>{s.plotName} · {res.simulated?.crop ?? s.baseCrop} · Saved {new Date(s.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
                   </div>
-                  <span>{res.simulated?.productionQuintals ?? "—"} q</span>
+                  <span>{simQ || "—"} q ({deltaQ >= 0 ? "+" : ""}{deltaQ} q vs baseline)</span>
                   <b>₹{(res.simulated?.netProfit ?? 0).toLocaleString("en-IN")} net</b>
                 </div>
               );

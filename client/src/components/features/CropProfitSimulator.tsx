@@ -28,17 +28,23 @@ export default function CropProfitSimulator() {
   const [waterLevel, setWaterLevel] = useState<"Scarce" | "Moderate" | "Abundant">("Moderate");
   const [maxBudgetInput, setMaxBudgetInput] = useState("75000");
   const [riskAppetite, setRiskAppetite] = useState<"Conservative" | "Balanced" | "High-Return">("Balanced");
+  const [scenarioMode, setScenarioMode] = useState<"Conservative" | "Expected" | "Optimistic">("Expected");
 
   const parsedBudget = Number(maxBudgetInput);
   const isValidBudget = Number.isFinite(parsedBudget) && parsedBudget >= 1000;
+  const yieldMult = scenarioMode === "Conservative" ? 0.75 : scenarioMode === "Optimistic" ? 1.25 : 1.0;
 
   const compareMutation = trpc.profit.compareCrops.useMutation();
+  const savedPlansQuery = trpc.profit.savedPlans.useQuery(undefined, { refetchOnWindowFocus: false });
+  const savePlanMut = trpc.profit.savePlan.useMutation({
+    onSuccess: () => void savedPlansQuery.refetch(),
+  });
 
   useEffect(() => {
     if (!isValidBudget) return;
     const timer = window.setTimeout(() => {
       compareMutation.mutate({
-        crops: rows,
+        crops: rows.map((r) => ({ ...r, expectedYieldQ: Number((r.expectedYieldQ * yieldMult).toFixed(1)) })),
         constraints: {
           currentCrop,
           availableWaterLevel: waterLevel,
@@ -49,7 +55,7 @@ export default function CropProfitSimulator() {
     }, 220);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, currentCrop, waterLevel, maxBudgetInput, riskAppetite, isValidBudget, parsedBudget]);
+  }, [rows, currentCrop, waterLevel, maxBudgetInput, riskAppetite, scenarioMode, isValidBudget, parsedBudget]);
 
   const updateRow = (index: number, patch: Partial<CropRowDraft>) => {
     setRows((cur) => cur.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -73,6 +79,19 @@ export default function CropProfitSimulator() {
             <p>Set your farm&apos;s water supply, capital ceiling, and risk preference to evaluate crop switching.</p>
           </div>
           <ArrowRightLeft size={20} className="muted-icon" />
+        </div>
+
+        <div className="sat-layer-tabs" style={{ marginBottom: 10, width: "fit-content" }}>
+          {(["Conservative", "Expected", "Optimistic"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={scenarioMode === mode ? "active" : ""}
+              onClick={() => setScenarioMode(mode)}
+            >
+              {mode} {mode === "Conservative" ? "(0.75×)" : mode === "Optimistic" ? "(1.25×)" : "(1.0×)"}
+            </button>
+          ))}
         </div>
 
         <div className="switch-constraints-grid">
@@ -217,7 +236,48 @@ export default function CropProfitSimulator() {
             </tbody>
           </table>
         </div>
+        {result && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
+            <small className="data-source-note">Scenario: {scenarioMode} yield multiplier ({yieldMult}×)</small>
+            <button
+              className="primary-button"
+              disabled={savePlanMut.isPending}
+              onClick={() => savePlanMut.mutate({
+                crop: result.topRecommendation.crop,
+                scenarioMode,
+                budgetTotal: Math.round(parsedBudget),
+                expectedNetProfit: Math.round(result.topRecommendation.netProfit),
+                roiPct: Math.round(result.topRecommendation.roiPct),
+              })}
+            >
+              {savePlanMut.isPending ? "Saving…" : "Save top profit plan"}
+            </button>
+          </div>
+        )}
       </section>
+
+      {(savedPlansQuery.data ?? []).length > 0 && (
+        <section className="panel">
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">SAVED SEASONAL PROFIT PLANS</span>
+              <h3>Saved crop profit comparisons</h3>
+            </div>
+          </div>
+          <div className="saved-scenarios-list">
+            {(savedPlansQuery.data ?? []).map((p: { id: number; crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number; createdAt: string | Date }) => (
+              <div key={p.id} className="saved-scenario-row">
+                <div>
+                  <strong>{p.crop} · {p.scenarioMode}</strong>
+                  <small>Budget ceiling ₹{p.budgetTotal.toLocaleString("en-IN")} · {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                </div>
+                <span className="status-pill green">ROI {p.roiPct}%</span>
+                <b>₹{p.expectedNetProfit.toLocaleString("en-IN")} net</b>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

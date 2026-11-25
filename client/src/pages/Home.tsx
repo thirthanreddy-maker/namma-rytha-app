@@ -71,6 +71,12 @@ import SatelliteHealthWorkspace from "@/components/features/SatelliteHealthWorks
 import WasteExchangeWorkspace from "@/components/features/WasteExchangeWorkspace";
 import LocalIntelligenceWorkspace from "@/components/features/LocalIntelligenceWorkspace";
 import CropFailureWorkspace from "@/components/features/CropFailureWorkspace";
+import FarmMemoryWorkspace from "@/components/features/FarmMemoryWorkspace";
+import CropRotationWorkspace from "@/components/features/CropRotationWorkspace";
+import CooperativeWorkspace from "@/components/features/CooperativeWorkspace";
+import TraceabilityWorkspace from "@/components/features/TraceabilityWorkspace";
+import FinancialForecastWorkspace from "@/components/features/FinancialForecastWorkspace";
+import SensorDashboard from "@/components/features/SensorDashboard";
 
 declare global {
   interface Window {
@@ -85,11 +91,17 @@ const navItems = [
   { label: "My Farm", icon: Sprout },
   { label: "Satellite health", icon: Satellite },
   { label: "Irrigation", icon: Droplets },
+  { label: "IoT sensors", icon: Radio },
   { label: "Soil health", icon: FlaskConical },
   { label: "Diagnose crop", icon: ScanLine },
+  { label: "Crop rotation", icon: RefreshCw },
   { label: "Failure analysis", icon: Microscope },
   { label: "Market rates", icon: TrendingUp },
   { label: "Profit planner", icon: WalletCards },
+  { label: "Financial forecast", icon: IndianRupee },
+  { label: "Farm memory", icon: BookOpen },
+  { label: "Cooperatives", icon: UsersRound },
+  { label: "Traceability", icon: ScanLine },
   { label: "Waste exchange", icon: Recycle },
   { label: "Local alerts", icon: Radio },
   { label: "Announcements", icon: Megaphone },
@@ -318,6 +330,29 @@ export default function Home() {
   const weatherInput = useMemo(() => ({ lat: liveLocation.lat, lng: liveLocation.lng }), [liveLocation.lat, liveLocation.lng]);
   const weatherQuery = trpc.weather.current.useQuery(weatherInput, { refetchInterval: 5 * 60 * 1000 });
   const sensorHistoryQuery = trpc.sensors.moistureHistory.useQuery(weatherInput, { refetchInterval: 5 * 60 * 1000 });
+  const plotsQuery = trpc.farm.plots.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const farmTodayQuery = trpc.dashboard.farmToday.useQuery(undefined, { refetchOnWindowFocus: false });
+  const markTodayDoneMut = trpc.dashboard.markActionDone.useMutation({
+    onSuccess: () => {
+      void trpcUtils.dashboard.farmToday.invalidate();
+      void trpcUtils.farm.planning.tasks.invalidate();
+      notify("Action marked complete.");
+    },
+    onError: (error) => notify(error.message),
+  });
+  const farmerDisplayName = user?.name?.trim() || "Farmer";
+  const farmerInitial = farmerDisplayName.charAt(0).toUpperCase();
+  const farmerLocationDisplay = user?.farmLocation?.trim() || "Kolar district, Karnataka";
+  const totalAcresDisplay = useMemo(() => {
+    const list = plotsQuery.data ?? [];
+    if (list.length === 0) return "2.4 acres";
+    const sum = list.reduce((acc, p) => acc + Number(p.areaAcres || 0), 0);
+    return `${Number(sum.toFixed(1))} acres · ${list.length} plot${list.length === 1 ? "" : "s"}`;
+  }, [plotsQuery.data]);
+  const todayFormatted = useMemo(
+    () => new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    [],
+  );
   const inboxQuery = trpc.assistant.inbox.useQuery();
   const markInboxReadMutation = trpc.assistant.markRead.useMutation({ onSuccess: () => void trpcUtils.assistant.inbox.invalidate() });
   const unreadInbox = Array.isArray(inboxQuery.data) ? inboxQuery.data.filter((item) => item.agronomistReply && !item.readAt).length : 0;
@@ -525,16 +560,16 @@ export default function Home() {
           <div className="hero-orbit orbit-two" />
           <div className="hero-content">
             <div className="eyebrow light"><span className="live-dot" /> FARM PULSE · LIVE</div>
-            <h1>{t.greeting}</h1>
+            <h1>{language === "Kannada" ? `ನಮಸ್ಕಾರ, ${farmerDisplayName}` : language === "Hindi" ? `नमस्ते, ${farmerDisplayName}` : `Good day, ${farmerDisplayName}`}</h1>
             <p>{t.subtitle}</p>
-            <div className="hero-meta"><MapPin size={15} /> Hegganahalli, Kolar · 2.4 acres <span className="meta-divider" /> {t.today}</div>
+            <div className="hero-meta"><MapPin size={15} /> {farmerLocationDisplay} · {totalAcresDisplay} <span className="meta-divider" /> {todayFormatted}</div>
             <button className="hero-button" onClick={speakAdvice}><Volume2 size={16} /> {t.useVoice}</button>
           </div>
           <div className="hero-weather">
             <CloudSun size={43} strokeWidth={1.6} />
-            <strong>28°</strong>
-            <span>Partly cloudy</span>
-            <small>Rain 40% · Humidity 68%</small>
+            <strong>{weatherQuery.data?.temperature ?? 28}°</strong>
+            <span>{rainProbability >= 50 ? "Rain expected" : "Partly cloudy"}</span>
+            <small>Rain {rainProbability}% · Humidity {weatherQuery.data?.humidity ?? 68}%</small>
           </div>
         </div>
         <div className="priority-card">
@@ -549,6 +584,37 @@ export default function Home() {
         <MetricCard icon={IndianRupee} label="Expected crop value" value="₹1.84L" note="Based on current rates" trend="up" tone="green" />
         <MetricCard icon={Gauge} label="Soil health score" value="72 / 100" note="Good · NPK balanced" trend="neutral" tone="amber" />
         <MetricCard icon={ShieldCheck} label="Crop health" value="Healthy" note="Last checked 2 hours ago" trend="neutral" tone="purple" />
+      </section>
+
+      <section className="panel today-actions-panel">
+        <div className="panel-title">
+          <div>
+            <span className="eyebrow">YOUR FARM TODAY · PRIORITIZED ACTIONS</span>
+            <h3>Recommended actions from your farm telemetry</h3>
+          </div>
+          <span className="status-pill green">{(farmTodayQuery.data ?? []).filter((a) => !a.completed).length} pending</span>
+        </div>
+        <div className="today-actions-list">
+          {(farmTodayQuery.data ?? []).map((action) => (
+            <div key={action.id} className={`today-action-card ${action.completed ? "is-done" : ""}`}>
+              <div className="today-action-row">
+                <span className={`today-action-priority ${action.priority}`}>{action.priority.toUpperCase()}</span>
+                <div className="today-action-copy">
+                  <strong>{action.activity}</strong>
+                  <small>{action.plotName} · {action.suggestedTime}</small>
+                  <p>{action.reason}</p>
+                </div>
+                <button
+                  className={action.completed ? "secondary-button" : "primary-button"}
+                  disabled={action.completed || markTodayDoneMut.isPending}
+                  onClick={() => markTodayDoneMut.mutate({ actionId: action.id, taskId: action.taskId })}
+                >
+                  <Check size={14} /> {action.completed ? "Done" : "Mark done"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <div className="section-row"><div><span className="eyebrow">YOUR DAY</span><h2>Small actions, stronger harvest</h2></div><button className="text-button" onClick={() => goTo("My Farm")}>Open farm plan <ArrowUpRight size={15} /></button></div>
@@ -585,6 +651,12 @@ export default function Home() {
 
   const renderFeature = () => {
     if (activeView === "Digital Twin") return <FeaturePage fullWidth eyebrow="AI FARM DIGITAL TWIN" title="Simulate tomorrow on your virtual farm." description="Monitor plot stages, water needs, and run What-If scenarios for drought, costs, crop switching, and harvest delays." icon={Layers} tone="green"><DigitalTwinWorkspace lat={liveLocation.lat} lng={liveLocation.lng} onToast={notify} onOpenAddPlot={() => setShowPlotModal(true)} /></FeaturePage>;
+    if (activeView === "IoT sensors") return <FeaturePage fullWidth eyebrow="IOT & ANOMALY INTELLIGENCE" title="Live plot sensors & anomaly alerts." description="Monitor soil moisture, temperature, humidity, and sensor battery health separately for hardware and simulated readings." icon={Radio} tone="blue"><SensorDashboard onToast={notify} /></FeaturePage>;
+    if (activeView === "Crop rotation") return <FeaturePage fullWidth eyebrow="AI CROP ROTATION INTELLIGENCE" title="Plan your next season to break disease cycles." description="Get ranked crop rotation recommendations tailored to your previous crop, soil pH, irrigation, and district." icon={RefreshCw} tone="green"><CropRotationWorkspace onToast={notify} /></FeaturePage>;
+    if (activeView === "Farm memory") return <FeaturePage fullWidth eyebrow="FARM MEMORY INTELLIGENCE" title="Your farm's living seasonal ledger." description="Record harvests, treatments, and field observations across seasons and search your entire farm history." icon={BookOpen} tone="amber"><FarmMemoryWorkspace onToast={notify} /></FeaturePage>;
+    if (activeView === "Financial forecast") return <FeaturePage fullWidth eyebrow="SEASONAL FINANCIAL FORECASTING" title="Project cash flow before planting." description="Simulate Conservative, Expected, and Optimistic seasonal cash-flow timelines using agronomic benchmarks." icon={IndianRupee} tone="green"><FinancialForecastWorkspace onToast={notify} /></FeaturePage>;
+    if (activeView === "Cooperatives") return <FeaturePage fullWidth eyebrow="FARMER COOPERATIVE INTELLIGENCE" title="Pool buying power with nearby farmers." description="Create or join local farmer groups, estimate bulk input savings, and submit collective purchase orders." icon={UsersRound} tone="blue"><CooperativeWorkspace onToast={notify} /></FeaturePage>;
+    if (activeView === "Traceability") return <FeaturePage fullWidth eyebrow="CROP-TO-BUYER TRACEABILITY" title="Generate QR harvest passports." description="Create harvest batches with quality grades, certifications, and journey events buyers can verify." icon={ScanLine} tone="purple"><TraceabilityWorkspace onToast={notify} /></FeaturePage>;
     if (activeView === "Satellite health") return <FeaturePage fullWidth eyebrow="SATELLITE FIELD MONITORING" title="See crop vigor zone by zone from orbit." description="Inspect registered plots on satellite imagery with vegetation indices, stressed sub-zones, and historical comparisons." icon={Satellite} tone="blue"><SatelliteHealthWorkspace lat={liveLocation.lat} lng={liveLocation.lng} /></FeaturePage>;
     if (activeView === "Waste exchange") return <FeaturePage fullWidth eyebrow="CIRCULAR FARM ECONOMY" title="Turn farm residues into soil value and extra income." description="Buy, sell, or trade compost, manure, crop straw, and organic by-products with nearby farmers." icon={Recycle} tone="green"><WasteExchangeWorkspace onToast={notify} /></FeaturePage>;
     if (activeView === "Local alerts") return <FeaturePage fullWidth eyebrow="LOCAL FARMER INTELLIGENCE" title="Regional pest, weather, and market radar." description="Share field observations with neighbors and separate community reports from verified regional alerts." icon={Radio} tone="amber"><LocalIntelligenceWorkspace lat={liveLocation.lat} lng={liveLocation.lng} onToast={notify} /></FeaturePage>;
@@ -610,11 +682,11 @@ export default function Home() {
         <div className="brand"><div className="brand-mark"><Sprout size={22} /></div><div><strong>Namma Rytha</strong><span>ನಮ್ಮ ರೈತ · Smart farming</span></div><button className="close-sidebar" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div>
         <div className="sidebar-scroll-hint">Scroll for more navigation</div>
         <nav className="side-nav"><span className="nav-caption">FARM WORKSPACE</span>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeView === label ? "active" : ""}`} onClick={() => goTo(label)}><Icon size={18} /><span>{label}</span>{label === "Diagnose crop" && <span className="nav-dot" />}</button>)}</nav>
-        <div className="sidebar-bottom"><button className="nav-item" onClick={() => notify("Help centre is opening soon.")}><BookOpen size={18} /><span>Farmer learning</span></button><button className="nav-item" onClick={() => setShowSettingsPanel(true)}><Settings size={18} /><span>Settings</span></button><div className="offline-card"><div className="offline-row"><span className="online-dot" /> <strong>Offline ready</strong><MoreHorizontal size={15} /></div><p>Last synced 2 mins ago. Core features are available without internet.</p></div><button className="profile-row" onClick={() => goTo("Profile")}><span className="profile-avatar">R</span><span><strong>Ravi Kumar</strong><small>Farmer · Kolar</small></span><MoreHorizontal size={18} /></button></div>
+        <div className="sidebar-bottom"><button className="nav-item" onClick={() => notify("Help centre is opening soon.")}><BookOpen size={18} /><span>Farmer learning</span></button><button className="nav-item" onClick={() => setShowSettingsPanel(true)}><Settings size={18} /><span>Settings</span></button><div className="offline-card"><div className="offline-row"><span className="online-dot" /> <strong>Offline ready</strong><MoreHorizontal size={15} /></div><p>Last synced 2 mins ago. Core features are available without internet.</p></div><button className="profile-row" onClick={() => goTo("Profile")}><span className="profile-avatar">{farmerInitial}</span><span><strong>{farmerDisplayName}</strong><small>{farmerLocationDisplay}</small></span><MoreHorizontal size={18} /></button></div>
       </aside>
       {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Close navigation menu" />}
       <div className="main-area">
-        <header className="topbar"><button className="mobile-menu" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><div className="mobile-brand"><div className="brand-mark"><Sprout size={19} /></div><strong>Namma Rytha</strong></div><div className="topbar-actions"><span className="sync-status"><span className="online-dot" /> Synced 2 min ago</span><ThemeToggle compact /><button className="language-button" onClick={() => setLanguage(language === "English" ? "Kannada" : language === "Kannada" ? "Hindi" : "English")}><Languages size={17} /> {language} <ChevronRight size={14} /></button><button className="notification-button" onClick={() => setInboxOpen(true)} aria-label="Agronomist inbox"><Bell size={19} />{unreadInbox > 0 && <span>{unreadInbox}</span>}</button><button className="top-profile" onClick={() => goTo("Profile")} aria-label="Open farmer profile">R</button></div></header>
+        <header className="topbar"><button className="mobile-menu" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><div className="mobile-brand"><div className="brand-mark"><Sprout size={19} /></div><strong>Namma Rytha</strong></div><div className="topbar-actions"><span className="sync-status"><span className="online-dot" /> Synced 2 min ago</span><ThemeToggle compact /><button className="language-button" onClick={() => setLanguage(language === "English" ? "Kannada" : language === "Kannada" ? "Hindi" : "English")}><Languages size={17} /> {language} <ChevronRight size={14} /></button><button className="notification-button" onClick={() => setInboxOpen(true)} aria-label="Agronomist inbox"><Bell size={19} />{unreadInbox > 0 && <span>{unreadInbox}</span>}</button><button className="top-profile" onClick={() => goTo("Profile")} aria-label="Open farmer profile">{farmerInitial}</button></div></header>
         <main className="page-content"><div className="breadcrumb"><span>Farmer workspace</span><ChevronRight size={14} /><strong>{activeView}</strong></div>{activeView === "Overview" ? renderOverview() : renderFeature()}</main>{notificationOpen && <NotificationCenter rainProbability={rainProbability} temperature={weatherQuery.data?.temperature ?? 28} onClose={() => setNotificationOpen(false)} />}
         <button className="assistant-launcher" onClick={() => setAssistantOpen((open) => !open)}><SparklesIcon /><span>Ask Rytha AI</span></button>{assistantOpen && <FarmerAssistant language={assistantLanguage} setLanguage={setAssistantLanguage} messages={assistantMessages} loading={assistantMutation.isPending} escalating={escalateMutation.isPending} onAsk={askAssistant} onEscalate={escalateAssistant} onTranscribeAudio={transcribeAudio} onClose={() => setAssistantOpen(false)} />}
       </div>

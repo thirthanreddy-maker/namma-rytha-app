@@ -12,10 +12,20 @@ type Props = {
 export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyItems }: Props) {
   const crop = selectedPlot.includes("Ragi") ? "Ragi" : selectedPlot.includes("Maize") ? "Maize" : "Tomato";
   const [showHealthReport, setShowHealthReport] = useState(false);
+  const [treatmentCondition, setTreatmentCondition] = useState("Early Blight");
+  const [treatmentApplied, setTreatmentApplied] = useState("");
+  const [treatmentOutcome, setTreatmentOutcome] = useState("monitoring");
 
   const riskInput = useMemo(() => ({ crop, plotName: selectedPlot, lat, lng }), [crop, selectedPlot, lat, lng]);
   const riskQuery = trpc.disease.forecastRisk.useQuery(riskInput, { refetchOnWindowFocus: false });
   const aiStatusQuery = trpc.disease.aiStatus.useQuery(undefined, { refetchOnWindowFocus: false });
+  const treatmentsQuery = trpc.disease.treatments.useQuery(undefined, { refetchOnWindowFocus: false });
+  const logTreatmentMut = trpc.disease.logTreatment.useMutation({
+    onSuccess: () => {
+      void treatmentsQuery.refetch();
+      setTreatmentApplied("");
+    },
+  });
 
   const risk = riskQuery.data;
 
@@ -109,13 +119,60 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
                     <strong>{item.likelyCondition}</strong>
                     <small>{new Date(item.createdAt).toLocaleDateString("en-IN")} · {item.severity} severity</small>
                   </div>
-                  <span>{Math.round(item.confidence)}% confidence</span>
+                  <span>AI estimate ({Math.round(item.confidence)}%)</span>
                 </div>
               ))
             )}
           </div>
         </section>
       )}
+
+      <section className="panel">
+        <div className="panel-title">
+          <div>
+            <span className="eyebrow">TREATMENT &amp; RECOVERY TIMELINE</span>
+            <h3>Log field treatments &amp; track crop recovery</h3>
+            <p>Track applied sprays, pruning, or organic controls and monitor recovery over time.</p>
+          </div>
+        </div>
+        <div className="fm-form-grid" style={{ marginBottom: 12 }}>
+          <label>Condition / Symptom
+            <input value={treatmentCondition} onChange={(e) => setTreatmentCondition(e.target.value)} placeholder="e.g. Early Blight" />
+          </label>
+          <label>Treatment applied
+            <input value={treatmentApplied} onChange={(e) => setTreatmentApplied(e.target.value)} placeholder="e.g. Pruned lower leaves + neem oil 3ml/L" />
+          </label>
+          <label>Recovery status
+            <select value={treatmentOutcome} onChange={(e) => setTreatmentOutcome(e.target.value)}>
+              <option value="monitoring">Monitoring</option>
+              <option value="improving">Improving</option>
+              <option value="recovered">Recovered</option>
+              <option value="escalated">Needs agronomist</option>
+            </select>
+          </label>
+        </div>
+        <button
+          className="secondary-button"
+          disabled={logTreatmentMut.isPending || !treatmentApplied.trim()}
+          onClick={() => logTreatmentMut.mutate({ plotName: selectedPlot, crop, conditionName: treatmentCondition, treatmentApplied, outcome: treatmentOutcome })}
+        >
+          {logTreatmentMut.isPending ? "Saving…" : "Log treatment"}
+        </button>
+
+        {(treatmentsQuery.data ?? []).length > 0 && (
+          <div className="saved-scenarios-list" style={{ marginTop: 12 }}>
+            {(treatmentsQuery.data ?? []).map((t: { id: number; plotName: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: string | Date }) => (
+              <div key={t.id} className="saved-scenario-row">
+                <div>
+                  <strong>{t.conditionName} · {t.plotName}</strong>
+                  <small>{t.treatmentApplied} · {new Date(t.loggedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                </div>
+                <span className={`status-pill ${t.outcome === "recovered" ? "green" : t.outcome === "improving" ? "blue" : "amber"}`}>{t.outcome}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

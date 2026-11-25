@@ -191,4 +191,76 @@ describe("Namma Rytha 10 Advanced Features API", () => {
     expect(res.confirmedIndicators.length).toBeGreaterThan(0);
     expect(res.possibleCauses.length).toBeGreaterThan(0);
   });
+
+  it("11. Rytha 2.0 Dashboard: returns prioritized farm today actions and allows marking done", async () => {
+    const caller = appRouter.createCaller(createFarmerContext("admin", 1));
+    const actions = await caller.dashboard.farmToday();
+    expect(actions.length).toBeGreaterThan(0);
+    const first = actions[0]!;
+    const done = await caller.dashboard.markActionDone({ actionId: first.id, taskId: first.taskId });
+    expect(done).toBe(true);
+  });
+
+  it("12. Rytha 2.0 Farm Memory: creates, lists, updates, and deletes farm records", async () => {
+    const caller = appRouter.createCaller(createFarmerContext());
+    const created = await caller.farmMemory.create({
+      recordType: "harvest",
+      crop: "Tomato",
+      plotName: "Plot A",
+      quantityQ: 24,
+      pricePerQ: 2600,
+      notes: "Good fruit size after drip fertigation.",
+    });
+    expect(created.id).toBeGreaterThan(0);
+    const list = await caller.farmMemory.list();
+    expect(list.some((r) => r.id === created.id)).toBe(true);
+    const updated = await caller.farmMemory.update({ id: created.id, quantityQ: 26 });
+    expect(updated.quantityQ).toBe(26);
+    const deleted = await caller.farmMemory.delete({ id: created.id });
+    expect(deleted.success).toBe(true);
+  });
+
+  it("13. Rytha 2.0 Crop Rotation: recommends ranked disease-breaking rotation crops", async () => {
+    const caller = appRouter.createCaller(createFarmerContext());
+    const rec = await caller.cropRotation.recommend({
+      previousCrop: "Tomato",
+      soilType: "Red loam",
+      soilPh: 6.5,
+      irrigationLevel: "Drip/Sprinkler",
+      diseaseHistory: "Early blight last season",
+      district: "Kolar",
+    });
+    expect(rec.recommendations).toHaveLength(3);
+    expect(rec.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("14. Rytha 2.0 Cooperatives & Traceability: manages groups, bulk requests, harvest batches & events", async () => {
+    const caller = appRouter.createCaller(createFarmerContext());
+    const coop = await caller.cooperative.create({ name: "Malur Drip FPO", description: "Bulk bio-inputs", district: "Kolar" });
+    expect(coop.id).toBeGreaterThan(0);
+    const bulk = await caller.cooperative.bulkPurchase.create({ coopId: coop.id, itemName: "Neem Cake", quantityKg: 500, unitPrice: 22 });
+    expect(bulk).toBeTruthy();
+
+    const batch = await caller.traceability.create({ crop: "Tomato", plotName: "Plot A", harvestDate: "2026-11-20", quantityKg: 800, qualityGrade: "A", certifications: ["GAP"] });
+    expect(batch.batchCode).toContain("RYT-TOM");
+    const ev = await caller.traceability.addEvent({ batchId: batch.id as number, eventType: "packed", location: "Kolar Packhouse" });
+    expect(ev.success).toBe(true);
+  });
+
+  it("15. Rytha 2.0 Financial Forecast, Anomaly Detection, Mandi Offer History, Profit Plans & Treatments", async () => {
+    const caller = appRouter.createCaller(createFarmerContext());
+    const forecast = await caller.finance.forecast({ crop: "Tomato", plotName: "Plot A", areaAcres: 2, season: "Kharif 2026" });
+    expect(forecast.seasons.length).toBeGreaterThanOrEqual(3);
+    expect(forecast.optimisticProfit).toBeGreaterThan(forecast.conservativeProfit);
+
+    const anomalyRes = await caller.anomaly.detect();
+    expect(typeof anomalyRes.detected).toBe("number");
+
+    const offer = await caller.mandi.saveOffer({ crop: "Tomato", quantityQ: 40, buyerOfferPerQ: 2400, verdict: "ACCEPT", bestMandi: "Kolar APMC", netProfit: 31400 });
+    expect(offer).toBeTruthy();
+    const plan = await caller.profit.savePlan({ crop: "Ragi", scenarioMode: "Expected", budgetTotal: 60000, expectedNetProfit: 80800, roiPct: 299 });
+    expect(plan).toBeTruthy();
+    const tr = await caller.disease.logTreatment({ plotName: "Plot A", crop: "Tomato", conditionName: "Early Blight", treatmentApplied: "Neem oil 3ml/L", outcome: "improving" });
+    expect(tr).toBeTruthy();
+  });
 });

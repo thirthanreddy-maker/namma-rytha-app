@@ -26,6 +26,14 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
   );
 
   const evalQuery = trpc.mandi.evaluateOffer.useQuery(evalInput, { refetchOnWindowFocus: false });
+  const offerHistoryQuery = trpc.mandi.offerHistory.useQuery(undefined, { refetchOnWindowFocus: false });
+  const saveOfferMut = trpc.mandi.saveOffer.useMutation({
+    onSuccess: () => {
+      void offerHistoryQuery.refetch();
+      onToast("Buyer offer saved to negotiation history.");
+    },
+    onError: (e) => onToast(e.message),
+  });
   const data = evalQuery.data;
 
   return (
@@ -121,17 +129,33 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
                 </div>
               </div>
 
-              <button
-                className="secondary-button full-width"
-                style={{ marginTop: 12 }}
-                onClick={() => {
-                  const summary = `Rytha Offer Check (${data.crop}, ${data.quantityQuintals}q): Offered ₹${data.buyerOfferPerQuintal}/q, Break-even ₹${data.breakEvenPerQuintal}/q. Verdict: ${data.verdict} (Best mandi ${data.bestMandi.mandi} net ₹${data.bestMandi.netRealization.toLocaleString("en-IN")}).`;
-                  void navigator.clipboard?.writeText(summary);
-                  onToast("Negotiation summary copied for sharing.");
-                }}
-              >
-                <BadgeIndianRupee size={15} /> Copy negotiation summary
-              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button
+                  className="secondary-button"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    const summary = `Rytha Offer Check (${data.crop}, ${data.quantityQuintals}q): Offered ₹${data.buyerOfferPerQuintal}/q, Break-even ₹${data.breakEvenPerQuintal}/q. Verdict: ${data.verdict} (Best mandi ${data.bestMandi.mandi} net ₹${data.bestMandi.netRealization.toLocaleString("en-IN")}).`;
+                    void navigator.clipboard?.writeText(summary);
+                    onToast("Negotiation summary copied for sharing.");
+                  }}
+                >
+                  <BadgeIndianRupee size={15} /> Copy summary
+                </button>
+                <button
+                  className="primary-button"
+                  disabled={saveOfferMut.isPending}
+                  onClick={() => saveOfferMut.mutate({
+                    crop: data.crop,
+                    quantityQ: Math.round(data.quantityQuintals),
+                    buyerOfferPerQ: Math.round(data.buyerOfferPerQuintal),
+                    verdict: data.verdict,
+                    bestMandi: data.bestMandi.mandi,
+                    netProfit: Math.round(data.buyerNetProfit),
+                  })}
+                >
+                  {saveOfferMut.isPending ? "Saving…" : "Save offer"}
+                </button>
+              </div>
             </>
           )}
         </section>
@@ -167,6 +191,29 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
                 <strong className={row.netProfit >= 0 ? "positive" : "negative"}>
                   ₹{row.netProfit.toLocaleString("en-IN")}
                 </strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(offerHistoryQuery.data ?? []).length > 0 && (
+        <section className="panel">
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">BUYER OFFER LOG</span>
+              <h3>Saved negotiation checks</h3>
+            </div>
+          </div>
+          <div className="saved-scenarios-list">
+            {(offerHistoryQuery.data ?? []).map((o: { id: number; crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number; createdAt: string | Date }) => (
+              <div key={o.id} className="saved-scenario-row">
+                <div>
+                  <strong>{o.crop} · {o.quantityQ}q @ ₹{o.buyerOfferPerQ}/q</strong>
+                  <small>Best mandi: {o.bestMandi} · {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                </div>
+                <span className={`status-pill ${o.verdict === "ACCEPT" ? "green" : "amber"}`}>{o.verdict.replaceAll("_", " ")}</span>
+                <b>₹{o.netProfit.toLocaleString("en-IN")} net</b>
               </div>
             ))}
           </div>

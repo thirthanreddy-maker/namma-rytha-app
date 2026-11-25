@@ -101,9 +101,15 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
           {satQuery.data?.configuredSentinel ? (
             <span className="status-pill green"><ShieldCheck size={13} /> Sentinel-2 Live</span>
           ) : (
-            <span className="status-pill amber"><AlertCircle size={13} /> Modelled NDVI Overlay</span>
+            <span className="status-pill amber"><AlertCircle size={13} /> Modeled Estimate · No satellite key configured</span>
           )}
         </div>
+        {!satQuery.data?.configuredSentinel && (
+          <div className="market-disclaimer" style={{ marginBottom: 10 }}>
+            <AlertCircle size={15} />
+            <span>Vegetation values (NDVI/NDWI) are modeled estimates based on plot telemetry and weather. Connect Sentinel Hub credentials for real Sentinel-2 imagery &amp; cloud-cover dates.</span>
+          </div>
+        )}
 
         <div className="sat-toolbar">
           <div className="sat-plot-tabs">

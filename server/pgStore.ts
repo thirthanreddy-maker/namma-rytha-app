@@ -354,6 +354,109 @@ async function initPgSchema(sql: Sql): Promise<boolean> {
       analysis_json JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS rytha_farm_memory (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      record_type VARCHAR(32) NOT NULL DEFAULT 'harvest',
+      crop VARCHAR(80) NOT NULL,
+      plot_name VARCHAR(120) NOT NULL DEFAULT 'General',
+      sowing_date DATE,
+      harvest_date DATE,
+      quantity_q NUMERIC(10,2),
+      price_per_q NUMERIC(10,2),
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_cooperatives (
+      id SERIAL PRIMARY KEY,
+      created_by INTEGER NOT NULL,
+      name VARCHAR(160) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      district VARCHAR(80) NOT NULL DEFAULT 'Kolar',
+      member_count INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_cooperative_members (
+      id SERIAL PRIMARY KEY,
+      coop_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (coop_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS rytha_bulk_purchase_requests (
+      id SERIAL PRIMARY KEY,
+      coop_id INTEGER NOT NULL,
+      requested_by INTEGER NOT NULL,
+      item_name VARCHAR(160) NOT NULL,
+      quantity_kg INTEGER NOT NULL,
+      unit_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      preferred_vendor VARCHAR(160),
+      status VARCHAR(24) NOT NULL DEFAULT 'open',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_harvest_batches (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      batch_code VARCHAR(32) UNIQUE NOT NULL,
+      crop VARCHAR(80) NOT NULL,
+      plot_name VARCHAR(120) NOT NULL,
+      harvest_date DATE NOT NULL,
+      quantity_kg INTEGER NOT NULL,
+      quality_grade VARCHAR(16) NOT NULL DEFAULT 'A',
+      certifications JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_traceability_events (
+      id SERIAL PRIMARY KEY,
+      batch_id INTEGER NOT NULL,
+      event_type VARCHAR(48) NOT NULL,
+      location VARCHAR(160) NOT NULL,
+      note TEXT,
+      timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_anomaly_events (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      plot_id INTEGER,
+      anomaly_type VARCHAR(64) NOT NULL,
+      severity VARCHAR(16) NOT NULL DEFAULT 'medium',
+      description TEXT NOT NULL,
+      resolved BOOLEAN NOT NULL DEFAULT false,
+      resolved_at TIMESTAMPTZ,
+      detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_mandi_offer_history (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      crop VARCHAR(80) NOT NULL,
+      quantity_q INTEGER NOT NULL,
+      buyer_offer_per_q INTEGER NOT NULL,
+      verdict VARCHAR(32) NOT NULL,
+      best_mandi VARCHAR(120) NOT NULL,
+      net_profit INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_profit_plans (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      crop VARCHAR(80) NOT NULL,
+      scenario_mode VARCHAR(24) NOT NULL DEFAULT 'Expected',
+      budget_total INTEGER NOT NULL,
+      expected_net_profit INTEGER NOT NULL,
+      roi_pct INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS rytha_treatment_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      plot_name VARCHAR(120) NOT NULL,
+      crop VARCHAR(80) NOT NULL,
+      condition_name VARCHAR(255) NOT NULL,
+      treatment_applied TEXT NOT NULL,
+      outcome VARCHAR(64) NOT NULL DEFAULT 'monitoring',
+      logged_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
   return true;
 }
@@ -379,6 +482,17 @@ type FallbackStoreState = {
   wasteInquiries: Array<{ id: number; listingId: number; buyerUserId: number; buyerName: string; buyerPhone: string; message: string; createdAt: string }>;
   intelReports: Array<Omit<RegionalIntelReportRecord, "createdAt"> & { createdAt: string; corroboratedBy: number[] }>;
   failureAnalyses: Array<Omit<CropFailureRecord, "createdAt"> & { createdAt: string }>;
+  farmMemory: Array<FarmMemoryRecord>;
+  cooperatives: Array<{ id: number; createdBy: number; name: string; description: string; district: string; memberCount: number; createdAt: string }>;
+  coopMembers: Array<{ coopId: number; userId: number; joinedAt: string }>;
+  bulkPurchases: Array<{ id: number; coopId: number; requestedBy: number; itemName: string; quantityKg: number; unitPrice: number; preferredVendor: string | null; status: string; createdAt: string }>;
+  harvestBatches: Array<{ id: number; userId: number; batchCode: string; crop: string; plotName: string; harvestDate: string; quantityKg: number; qualityGrade: string; certifications: string[]; createdAt: string }>;
+  traceEvents: Array<{ id: number; batchId: number; eventType: string; location: string; note: string | null; timestamp: string }>;
+  anomalyEvents: Array<{ id: number; userId: number; plotId: number | null; anomalyType: string; severity: string; description: string; resolved: boolean; detectedAt: string }>;
+  mandiOffers: Array<{ id: number; userId: number; crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number; createdAt: string }>;
+  profitPlans: Array<{ id: number; userId: number; crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number; createdAt: string }>;
+  treatmentLogs: Array<{ id: number; userId: number; plotName: string; crop: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: string }>;
+  completedTodayIds: Record<string, boolean>;
 };
 
 function createSeededState(): FallbackStoreState {
@@ -499,6 +613,19 @@ function createSeededState(): FallbackStoreState {
       },
     ],
     failureAnalyses: [],
+    farmMemory: [],
+    cooperatives: [
+      { id: 1, createdBy: 901, name: "Kolar Tomato Growers FPO", description: "Collective procurement of drip lines, bio-fertilizers, and direct APMC dispatch.", district: "Kolar", memberCount: 18, createdAt: now },
+    ],
+    coopMembers: [],
+    bulkPurchases: [],
+    harvestBatches: [],
+    traceEvents: [],
+    anomalyEvents: [],
+    mandiOffers: [],
+    profitPlans: [],
+    treatmentLogs: [],
+    completedTodayIds: {},
   };
 }
 
@@ -511,6 +638,17 @@ export function getMemoryStore(): FallbackStoreState {
       const raw = fs.readFileSync(STORE_FILE, "utf8");
       const parsed = JSON.parse(raw) as FallbackStoreState;
       if (parsed && Array.isArray(parsed.plots)) {
+        parsed.farmMemory ??= [];
+        parsed.cooperatives ??= [];
+        parsed.coopMembers ??= [];
+        parsed.bulkPurchases ??= [];
+        parsed.harvestBatches ??= [];
+        parsed.traceEvents ??= [];
+        parsed.anomalyEvents ??= [];
+        parsed.mandiOffers ??= [];
+        parsed.profitPlans ??= [];
+        parsed.treatmentLogs ??= [];
+        parsed.completedTodayIds ??= {};
         _memoryStore = parsed;
         return _memoryStore;
       }
@@ -897,4 +1035,506 @@ export async function listCropFailureAnalyses(userId: number): Promise<CropFailu
     `;
   }
   return getMemoryStore().failureAnalyses.filter((f) => f.userId === userId).map((f) => ({ ...f, createdAt: new Date(f.createdAt) }));
+}
+
+// ─── FARM MEMORY ─────────────────────────────────────────────────────────────
+export type FarmMemoryRecord = {
+  id: number; userId: number; recordType: string; crop: string; plotName: string;
+  sowingDate: string | null; harvestDate: string | null; quantityQ: number | null;
+  pricePerQ: number | null; notes: string | null; createdAt: Date | string; updatedAt: Date | string;
+};
+
+export async function listFarmMemory(userId: number): Promise<FarmMemoryRecord[]> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<FarmMemoryRecord[]>`
+      SELECT id, user_id AS "userId", record_type AS "recordType", crop, plot_name AS "plotName",
+             sowing_date AS "sowingDate", harvest_date AS "harvestDate",
+             quantity_q AS "quantityQ", price_per_q AS "pricePerQ", notes,
+             created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM rytha_farm_memory WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 100
+    `;
+  }
+  return getMemoryStore().farmMemory.filter((r) => r.userId === userId);
+}
+
+export async function createFarmMemory(userId: number, input: Omit<FarmMemoryRecord, "id" | "userId" | "createdAt" | "updatedAt">): Promise<FarmMemoryRecord> {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql<FarmMemoryRecord[]>`
+      INSERT INTO rytha_farm_memory (user_id, record_type, crop, plot_name, sowing_date, harvest_date, quantity_q, price_per_q, notes)
+      VALUES (${userId}, ${input.recordType}, ${input.crop}, ${input.plotName},
+              ${input.sowingDate ?? null}, ${input.harvestDate ?? null},
+              ${input.quantityQ ?? null}, ${input.pricePerQ ?? null}, ${input.notes ?? null})
+      RETURNING id, user_id AS "userId", record_type AS "recordType", crop, plot_name AS "plotName",
+                sowing_date AS "sowingDate", harvest_date AS "harvestDate",
+                quantity_q AS "quantityQ", price_per_q AS "pricePerQ", notes,
+                created_at AS "createdAt", updated_at AS "updatedAt"
+    `;
+    return rows[0]!;
+  }
+  const store = getMemoryStore();
+  const now = new Date().toISOString();
+  const record: FarmMemoryRecord = { id: ++store.nextId, userId, ...input, createdAt: now, updatedAt: now };
+  store.farmMemory.unshift(record);
+  saveMemoryStore();
+  return record;
+}
+
+export async function updateFarmMemory(userId: number, id: number, input: Partial<Omit<FarmMemoryRecord, "id" | "userId" | "createdAt" | "updatedAt">>): Promise<FarmMemoryRecord | null> {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql<FarmMemoryRecord[]>`
+      UPDATE rytha_farm_memory
+      SET record_type = COALESCE(${input.recordType ?? null}, record_type),
+          crop = COALESCE(${input.crop ?? null}, crop),
+          plot_name = COALESCE(${input.plotName ?? null}, plot_name),
+          sowing_date = ${input.sowingDate ?? null},
+          harvest_date = ${input.harvestDate ?? null},
+          quantity_q = ${input.quantityQ ?? null},
+          price_per_q = ${input.pricePerQ ?? null},
+          notes = ${input.notes ?? null},
+          updated_at = NOW()
+      WHERE id = ${id} AND user_id = ${userId}
+      RETURNING id, user_id AS "userId", record_type AS "recordType", crop, plot_name AS "plotName",
+                sowing_date AS "sowingDate", harvest_date AS "harvestDate",
+                quantity_q AS "quantityQ", price_per_q AS "pricePerQ", notes,
+                created_at AS "createdAt", updated_at AS "updatedAt"
+    `;
+    return rows[0] ?? null;
+  }
+  const store = getMemoryStore();
+  const idx = store.farmMemory.findIndex((r) => r.id === id && r.userId === userId);
+  if (idx === -1) return null;
+  const updated: FarmMemoryRecord = { ...store.farmMemory[idx]!, ...input, updatedAt: new Date().toISOString() };
+  store.farmMemory[idx] = updated;
+  saveMemoryStore();
+  return updated;
+}
+
+export async function deleteFarmMemory(userId: number, id: number): Promise<boolean> {
+  const sql = await getPgSql();
+  if (sql) {
+    const result = await sql`DELETE FROM rytha_farm_memory WHERE id = ${id} AND user_id = ${userId} RETURNING id`;
+    return result.length > 0;
+  }
+  const store = getMemoryStore();
+  const prevLen = store.farmMemory.length;
+  store.farmMemory = store.farmMemory.filter((r) => !(r.id === id && r.userId === userId));
+  saveMemoryStore();
+  return store.farmMemory.length < prevLen;
+}
+
+// ─── COOPERATIVES ─────────────────────────────────────────────────────────────
+export async function listCooperatives(): Promise<Array<{ id: number; name: string; description: string; district: string; memberCount: number; createdAt: Date | string }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql<Array<{ id: number; name: string; description: string; district: string; memberCount: number; createdAt: Date }>>`
+      SELECT id, name, description, district, member_count AS "memberCount", created_at AS "createdAt" FROM rytha_cooperatives ORDER BY created_at DESC LIMIT 50
+    `;
+    if (rows.length > 0) return rows;
+  }
+  return getMemoryStore().cooperatives;
+}
+
+export async function createCooperative(userId: number, input: { name: string; description: string; district: string }): Promise<{ id: number; name: string }> {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_cooperatives (created_by, name, description, district) VALUES (${userId}, ${input.name}, ${input.description}, ${input.district})
+      RETURNING id, name
+    `;
+    const coop = rows[0] as { id: number; name: string };
+    await sql`INSERT INTO rytha_cooperative_members (coop_id, user_id) VALUES (${coop.id}, ${userId}) ON CONFLICT DO NOTHING`;
+    return coop;
+  }
+  const store = getMemoryStore();
+  const now = new Date().toISOString();
+  const id = ++store.nextId;
+  store.cooperatives.unshift({ id, createdBy: userId, name: input.name, description: input.description, district: input.district, memberCount: 1, createdAt: now });
+  store.coopMembers.push({ coopId: id, userId, joinedAt: now });
+  saveMemoryStore();
+  return { id, name: input.name };
+}
+
+export async function joinCooperative(coopId: number, userId: number): Promise<boolean> {
+  const sql = await getPgSql();
+  if (sql) {
+    await sql`INSERT INTO rytha_cooperative_members (coop_id, user_id) VALUES (${coopId}, ${userId}) ON CONFLICT DO NOTHING`;
+    await sql`UPDATE rytha_cooperatives SET member_count = member_count + 1 WHERE id = ${coopId}`;
+    return true;
+  }
+  const store = getMemoryStore();
+  if (!store.coopMembers.some((m) => m.coopId === coopId && m.userId === userId)) {
+    store.coopMembers.push({ coopId, userId, joinedAt: new Date().toISOString() });
+    const coop = store.cooperatives.find((c) => c.id === coopId);
+    if (coop) coop.memberCount += 1;
+    saveMemoryStore();
+  }
+  return true;
+}
+
+export async function getUserCooperatives(userId: number): Promise<Array<{ coopId: number; name: string }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<Array<{ coopId: number; name: string }>>`SELECT cm.coop_id AS "coopId", c.name FROM rytha_cooperative_members cm JOIN rytha_cooperatives c ON c.id = cm.coop_id WHERE cm.user_id = ${userId}`;
+  }
+  const store = getMemoryStore();
+  return store.coopMembers
+    .filter((m) => m.userId === userId)
+    .map((m) => ({ coopId: m.coopId, name: store.cooperatives.find((c) => c.id === m.coopId)?.name ?? "Group" }));
+}
+
+export async function createBulkPurchaseRequest(input: { coopId: number; requestedBy: number; itemName: string; quantityKg: number; unitPrice: number; preferredVendor: string | null }) {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_bulk_purchase_requests (coop_id, requested_by, item_name, quantity_kg, unit_price, preferred_vendor)
+      VALUES (${input.coopId}, ${input.requestedBy}, ${input.itemName}, ${input.quantityKg}, ${input.unitPrice}, ${input.preferredVendor ?? null})
+      RETURNING id, item_name AS "itemName", quantity_kg AS "quantityKg", unit_price AS "unitPrice", status, preferred_vendor AS "preferredVendor"
+    `;
+    return rows[0];
+  }
+  const store = getMemoryStore();
+  const row = { id: ++store.nextId, coopId: input.coopId, requestedBy: input.requestedBy, itemName: input.itemName, quantityKg: input.quantityKg, unitPrice: input.unitPrice, preferredVendor: input.preferredVendor, status: "open", createdAt: new Date().toISOString() };
+  store.bulkPurchases.unshift(row);
+  saveMemoryStore();
+  return row;
+}
+
+export async function listBulkPurchaseRequests(userId: number): Promise<Array<{ id: number; itemName: string; quantityKg: number; unitPrice: number; status: string; preferredVendor: string | null }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<Array<{ id: number; itemName: string; quantityKg: number; unitPrice: number; status: string; preferredVendor: string | null }>>`
+      SELECT bp.id, bp.item_name AS "itemName", bp.quantity_kg AS "quantityKg", bp.unit_price AS "unitPrice",
+             bp.status, bp.preferred_vendor AS "preferredVendor"
+      FROM rytha_bulk_purchase_requests bp
+      JOIN rytha_cooperative_members cm ON cm.coop_id = bp.coop_id AND cm.user_id = ${userId}
+      ORDER BY bp.created_at DESC LIMIT 20
+    `;
+  }
+  const store = getMemoryStore();
+  const myCoopIds = new Set(store.coopMembers.filter((m) => m.userId === userId).map((m) => m.coopId));
+  return store.bulkPurchases.filter((b) => myCoopIds.has(b.coopId) || b.requestedBy === userId);
+}
+
+// ─── TRACEABILITY ─────────────────────────────────────────────────────────────
+function generateBatchCode(crop: string): string {
+  const prefix = crop.slice(0, 3).toUpperCase().padEnd(3, "X");
+  const year = new Date().getFullYear().toString().slice(-2);
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `RYT-${prefix}-${year}-${rand}`;
+}
+
+export async function createHarvestBatch(userId: number, input: { crop: string; plotName: string; harvestDate: string; quantityKg: number; qualityGrade: string; certifications: string[] }) {
+  const sql = await getPgSql();
+  const batchCode = generateBatchCode(input.crop);
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_harvest_batches (user_id, batch_code, crop, plot_name, harvest_date, quantity_kg, quality_grade, certifications)
+      VALUES (${userId}, ${batchCode}, ${input.crop}, ${input.plotName}, ${input.harvestDate},
+              ${input.quantityKg}, ${input.qualityGrade}, ${JSON.stringify(input.certifications)}::jsonb)
+      RETURNING id, batch_code AS "batchCode", crop, plot_name AS "plotName", harvest_date AS "harvestDate",
+                quantity_kg AS "quantityKg", quality_grade AS "qualityGrade", certifications, created_at AS "createdAt"
+    `;
+    return { ...(rows[0] as Record<string, unknown>), events: [] };
+  }
+  const store = getMemoryStore();
+  const batch = { id: ++store.nextId, userId, batchCode, ...input, createdAt: new Date().toISOString() };
+  store.harvestBatches.unshift(batch);
+  saveMemoryStore();
+  return { ...batch, events: [] };
+}
+
+export async function listHarvestBatches(userId: number) {
+  const sql = await getPgSql();
+  if (sql) {
+    const batches = await sql`
+      SELECT id, batch_code AS "batchCode", crop, plot_name AS "plotName", harvest_date AS "harvestDate",
+             quantity_kg AS "quantityKg", quality_grade AS "qualityGrade", certifications, created_at AS "createdAt"
+      FROM rytha_harvest_batches WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 20
+    `;
+    const enriched = await Promise.all(batches.map(async (b: Record<string, unknown>) => {
+      const events = await sql`
+        SELECT event_type AS "eventType", location, note, timestamp
+        FROM rytha_traceability_events WHERE batch_id = ${b["id"] as number} ORDER BY timestamp ASC
+      `;
+      return { ...b, events };
+    }));
+    return enriched;
+  }
+  const store = getMemoryStore();
+  return store.harvestBatches
+    .filter((b) => b.userId === userId)
+    .map((b) => ({
+      ...b,
+      events: store.traceEvents.filter((e) => e.batchId === b.id),
+    }));
+}
+
+export async function addTraceabilityEvent(batchId: number, input: { eventType: string; location: string; note: string | null }) {
+  const sql = await getPgSql();
+  if (sql) {
+    await sql`INSERT INTO rytha_traceability_events (batch_id, event_type, location, note) VALUES (${batchId}, ${input.eventType}, ${input.location}, ${input.note ?? null})`;
+    return { success: true as const };
+  }
+  const store = getMemoryStore();
+  store.traceEvents.push({ id: ++store.nextId, batchId, eventType: input.eventType, location: input.location, note: input.note, timestamp: new Date().toISOString() });
+  saveMemoryStore();
+  return { success: true as const };
+}
+
+// ─── ANOMALY EVENTS ───────────────────────────────────────────────────────────
+export async function listAnomalyEvents(userId: number) {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql`
+      SELECT id, plot_id AS "plotId", anomaly_type AS "anomalyType", severity, description,
+             resolved, detected_at AS "detectedAt"
+      FROM rytha_anomaly_events WHERE user_id = ${userId} ORDER BY detected_at DESC LIMIT 30
+    `;
+  }
+  return getMemoryStore().anomalyEvents.filter((a) => a.userId === userId);
+}
+
+export async function createAnomalyEvent(userId: number, plotId: number | null, anomalyType: string, severity: string, description: string) {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_anomaly_events (user_id, plot_id, anomaly_type, severity, description)
+      VALUES (${userId}, ${plotId ?? null}, ${anomalyType}, ${severity}, ${description})
+      RETURNING id, plot_id AS "plotId", anomaly_type AS "anomalyType", severity, description, resolved, detected_at AS "detectedAt"
+    `;
+    return rows[0];
+  }
+  const store = getMemoryStore();
+  const row = { id: ++store.nextId, userId, plotId, anomalyType, severity, description, resolved: false, detectedAt: new Date().toISOString() };
+  store.anomalyEvents.unshift(row);
+  saveMemoryStore();
+  return row;
+}
+
+export async function resolveAnomalyEvent(id: number, userId: number): Promise<boolean> {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`UPDATE rytha_anomaly_events SET resolved = true, resolved_at = NOW() WHERE id = ${id} AND user_id = ${userId} RETURNING id`;
+    return rows.length > 0;
+  }
+  const store = getMemoryStore();
+  const item = store.anomalyEvents.find((a) => a.id === id && a.userId === userId);
+  if (!item) return false;
+  item.resolved = true;
+  saveMemoryStore();
+  return true;
+}
+
+// ─── DASHBOARD "YOUR FARM TODAY" ──────────────────────────────────────────────
+export type FarmTodayAction = {
+  id: string;
+  priority: "critical" | "high" | "medium";
+  activity: string;
+  reason: string;
+  plotName: string;
+  suggestedTime: string;
+  completed: boolean;
+  taskId?: number;
+};
+
+export async function getFarmTodayActions(userId: number): Promise<FarmTodayAction[]> {
+  const sql = await getPgSql();
+  const actions: FarmTodayAction[] = [];
+  const store = getMemoryStore();
+
+  let plots: Array<{ id: number; name: string; crop: string; growthStage: string }> = [];
+  let readings: Array<{ plotId: number; moisture: number; temperature: number; humidity: number; recordedAt: string | Date }> = [];
+  let tasks: Array<{ id: number; plotId: number | null; title: string; detail: string | null; status: string }> = [];
+  let cycles: Array<{ id: number; plotId: number; crop: string; expectedHarvestDate: string | Date; status: string }> = [];
+
+  if (sql) {
+    plots = await sql`SELECT id, name, crop, growth_stage AS "growthStage" FROM rytha_plots WHERE user_id = ${userId}`;
+    readings = await sql`SELECT DISTINCT ON (plot_id) plot_id AS "plotId", moisture, temperature, humidity, recorded_at AS "recordedAt" FROM rytha_sensor_readings WHERE user_id = ${userId} ORDER BY plot_id, recorded_at DESC`;
+    tasks = await sql`SELECT id, plot_id AS "plotId", title, detail, status FROM rytha_farm_tasks WHERE user_id = ${userId} AND status = 'pending' ORDER BY due_date ASC LIMIT 10`;
+    cycles = await sql`SELECT id, plot_id AS "plotId", crop, expected_harvest_date AS "expectedHarvestDate", status FROM rytha_crop_cycles WHERE user_id = ${userId} AND status = 'active'`;
+  } else {
+    ensureUserDefaultPlotsInMemory(userId);
+    plots = store.plots.filter((p) => p.userId === userId);
+    readings = store.readings.filter((r) => r.userId === userId || r.userId === 1);
+    tasks = store.tasks.filter((t) => (t.userId === userId || t.userId === 1) && t.status === "pending");
+    cycles = store.cycles.filter((c) => (c.userId === userId || c.userId === 1) && c.status === "active");
+  }
+
+  for (const plot of plots) {
+    const reading = readings.find((r) => r.plotId === plot.id);
+    if (reading && reading.moisture < 38) {
+      const id = `irr-${plot.id}`;
+      actions.push({
+        id,
+        priority: reading.moisture < 28 ? "critical" : "high",
+        activity: `Irrigate ${plot.name}`,
+        reason: `Soil moisture is ${reading.moisture}%, below optimal ${plot.growthStage.toLowerCase()} threshold.`,
+        plotName: plot.name,
+        suggestedTime: "Within 4 hours",
+        completed: Boolean(store.completedTodayIds[id]),
+      });
+    }
+    if (reading && reading.humidity >= 72) {
+      const id = `dis-${plot.id}`;
+      actions.push({
+        id,
+        priority: "high",
+        activity: `Scout ${plot.crop} lower leaves for blight`,
+        reason: `Field humidity at ${reading.humidity}% increases fungal risk during ${plot.growthStage}.`,
+        plotName: plot.name,
+        suggestedTime: "Before 5:30 PM",
+        completed: Boolean(store.completedTodayIds[id]),
+      });
+    }
+  }
+
+  for (const cycle of cycles) {
+    const daysLeft = Math.ceil((new Date(cycle.expectedHarvestDate).getTime() - Date.now()) / 86400000);
+    if (daysLeft <= 14 && daysLeft >= -7) {
+      const plot = plots.find((p) => p.id === cycle.plotId);
+      const id = `harv-${cycle.id}`;
+      actions.push({
+        id,
+        priority: daysLeft <= 3 ? "high" : "medium",
+        activity: `Prepare harvest & check mandi rates for ${cycle.crop}`,
+        reason: daysLeft <= 0 ? `Harvest window reached.` : `Expected harvest in ${daysLeft} day(s).`,
+        plotName: plot?.name ?? cycle.crop,
+        suggestedTime: "This week",
+        completed: Boolean(store.completedTodayIds[id]),
+      });
+    }
+  }
+
+  for (const task of tasks.slice(0, 4)) {
+    const plot = plots.find((p) => p.id === task.plotId);
+    const id = `task-${task.id}`;
+    actions.push({
+      id,
+      priority: "medium",
+      activity: task.title,
+      reason: task.detail || "Scheduled farm plan action.",
+      plotName: plot?.name ?? "General Farm",
+      suggestedTime: "Today",
+      completed: Boolean(store.completedTodayIds[id]),
+      taskId: task.id,
+    });
+  }
+
+  if (actions.length === 0) {
+    actions.push({
+      id: "default-scout",
+      priority: "medium",
+      activity: "Run morning field walk & check drip emitters",
+      reason: "All sensor thresholds are currently healthy.",
+      plotName: plots[0]?.name ?? "Main Plot",
+      suggestedTime: "Morning",
+      completed: Boolean(store.completedTodayIds["default-scout"]),
+    });
+  }
+
+  const order = { critical: 0, high: 1, medium: 2 };
+  return actions.sort((a, b) => Number(a.completed) - Number(b.completed) || order[a.priority] - order[b.priority]);
+}
+
+export async function markTodayActionDone(userId: number, actionId: string, taskId?: number): Promise<boolean> {
+  const store = getMemoryStore();
+  store.completedTodayIds[actionId] = true;
+  saveMemoryStore();
+  if (taskId) {
+    const sql = await getPgSql();
+    if (sql) {
+      await sql`UPDATE rytha_farm_tasks SET status = 'completed', completed_at = NOW() WHERE id = ${taskId} AND user_id = ${userId}`;
+    } else {
+      const t = store.tasks.find((x) => x.id === taskId);
+      if (t) { t.status = "completed"; t.completedAt = new Date().toISOString(); saveMemoryStore(); }
+    }
+  }
+  return true;
+}
+
+// ─── MANDI OFFER HISTORY ──────────────────────────────────────────────────────
+export async function saveMandiOffer(userId: number, input: { crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number }) {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_mandi_offer_history (user_id, crop, quantity_q, buyer_offer_per_q, verdict, best_mandi, net_profit)
+      VALUES (${userId}, ${input.crop}, ${input.quantityQ}, ${input.buyerOfferPerQ}, ${input.verdict}, ${input.bestMandi}, ${input.netProfit})
+      RETURNING id, crop, quantity_q AS "quantityQ", buyer_offer_per_q AS "buyerOfferPerQ", verdict, best_mandi AS "bestMandi", net_profit AS "netProfit", created_at AS "createdAt"
+    `;
+    return rows[0];
+  }
+  const store = getMemoryStore();
+  const row = { id: ++store.nextId, userId, ...input, createdAt: new Date().toISOString() };
+  store.mandiOffers.unshift(row);
+  saveMemoryStore();
+  return row;
+}
+
+export async function listMandiOffers(userId: number): Promise<Array<{ id: number; crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number; createdAt: Date | string }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<Array<{ id: number; crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number; createdAt: Date }>>`
+      SELECT id, crop, quantity_q AS "quantityQ", buyer_offer_per_q AS "buyerOfferPerQ", verdict, best_mandi AS "bestMandi", net_profit AS "netProfit", created_at AS "createdAt" FROM rytha_mandi_offer_history WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 20
+    `;
+  }
+  return getMemoryStore().mandiOffers.filter((o) => o.userId === userId);
+}
+
+// ─── PROFIT PLANS ─────────────────────────────────────────────────────────────
+export async function saveProfitPlan(userId: number, input: { crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number }) {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_profit_plans (user_id, crop, scenario_mode, budget_total, expected_net_profit, roi_pct)
+      VALUES (${userId}, ${input.crop}, ${input.scenarioMode}, ${input.budgetTotal}, ${input.expectedNetProfit}, ${input.roiPct})
+      RETURNING id, crop, scenario_mode AS "scenarioMode", budget_total AS "budgetTotal", expected_net_profit AS "expectedNetProfit", roi_pct AS "roiPct", created_at AS "createdAt"
+    `;
+    return rows[0];
+  }
+  const store = getMemoryStore();
+  const row = { id: ++store.nextId, userId, ...input, createdAt: new Date().toISOString() };
+  store.profitPlans.unshift(row);
+  saveMemoryStore();
+  return row;
+}
+
+export async function listProfitPlans(userId: number): Promise<Array<{ id: number; crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number; createdAt: Date | string }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<Array<{ id: number; crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number; createdAt: Date }>>`
+      SELECT id, crop, scenario_mode AS "scenarioMode", budget_total AS "budgetTotal", expected_net_profit AS "expectedNetProfit", roi_pct AS "roiPct", created_at AS "createdAt" FROM rytha_profit_plans WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 20
+    `;
+  }
+  return getMemoryStore().profitPlans.filter((p) => p.userId === userId);
+}
+
+// ─── TREATMENT LOGS ───────────────────────────────────────────────────────────
+export async function addTreatmentLog(userId: number, input: { plotName: string; crop: string; conditionName: string; treatmentApplied: string; outcome: string }) {
+  const sql = await getPgSql();
+  if (sql) {
+    const rows = await sql`
+      INSERT INTO rytha_treatment_logs (user_id, plot_name, crop, condition_name, treatment_applied, outcome)
+      VALUES (${userId}, ${input.plotName}, ${input.crop}, ${input.conditionName}, ${input.treatmentApplied}, ${input.outcome})
+      RETURNING id, plot_name AS "plotName", crop, condition_name AS "conditionName", treatment_applied AS "treatmentApplied", outcome, logged_at AS "loggedAt"
+    `;
+    return rows[0];
+  }
+  const store = getMemoryStore();
+  const row = { id: ++store.nextId, userId, ...input, loggedAt: new Date().toISOString() };
+  store.treatmentLogs.unshift(row);
+  saveMemoryStore();
+  return row;
+}
+
+export async function listTreatmentLogs(userId: number): Promise<Array<{ id: number; plotName: string; crop: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: Date | string }>> {
+  const sql = await getPgSql();
+  if (sql) {
+    return sql<Array<{ id: number; plotName: string; crop: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: Date }>>`
+      SELECT id, plot_name AS "plotName", crop, condition_name AS "conditionName", treatment_applied AS "treatmentApplied", outcome, logged_at AS "loggedAt" FROM rytha_treatment_logs WHERE user_id = ${userId} ORDER BY logged_at DESC LIMIT 25
+    `;
+  }
+  return getMemoryStore().treatmentLogs.filter((t) => t.userId === userId);
 }
