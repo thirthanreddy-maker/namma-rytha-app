@@ -26,23 +26,30 @@ export default function CropProfitSimulator() {
   const [rows, setRows] = useState<CropRowDraft[]>(DEFAULT_CROPS);
   const [currentCrop, setCurrentCrop] = useState("Tomato");
   const [waterLevel, setWaterLevel] = useState<"Scarce" | "Moderate" | "Abundant">("Moderate");
-  const [maxBudget, setMaxBudget] = useState(75000);
+  const [maxBudgetInput, setMaxBudgetInput] = useState("75000");
   const [riskAppetite, setRiskAppetite] = useState<"Conservative" | "Balanced" | "High-Return">("Balanced");
+
+  const parsedBudget = Number(maxBudgetInput);
+  const isValidBudget = Number.isFinite(parsedBudget) && parsedBudget >= 1000;
 
   const compareMutation = trpc.profit.compareCrops.useMutation();
 
   useEffect(() => {
-    compareMutation.mutate({
-      crops: rows,
-      constraints: {
-        currentCrop,
-        availableWaterLevel: waterLevel,
-        maxBudgetTotal: maxBudget,
-        riskAppetite,
-      },
-    });
+    if (!isValidBudget) return;
+    const timer = window.setTimeout(() => {
+      compareMutation.mutate({
+        crops: rows,
+        constraints: {
+          currentCrop,
+          availableWaterLevel: waterLevel,
+          maxBudgetTotal: parsedBudget,
+          riskAppetite,
+        },
+      });
+    }, 220);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, currentCrop, waterLevel, maxBudget, riskAppetite]);
+  }, [rows, currentCrop, waterLevel, maxBudgetInput, riskAppetite, isValidBudget, parsedBudget]);
 
   const updateRow = (index: number, patch: Partial<CropRowDraft>) => {
     setRows((cur) => cur.map((r, i) => (i === index ? { ...r, ...patch } : r)));
@@ -85,7 +92,8 @@ export default function CropProfitSimulator() {
           </label>
           <label>
             Max investment budget (₹)
-            <input type="number" min={5000} step={2500} value={maxBudget} onChange={(e) => setMaxBudget(Number(e.target.value))} />
+            <input type="number" min={1000} step={2500} value={maxBudgetInput} onChange={(e) => setMaxBudgetInput(e.target.value)} />
+            {!isValidBudget && <small style={{ color: "var(--amber-strong)", fontWeight: 600 }}>Enter at least ₹1,000 to run comparison</small>}
           </label>
           <label>
             Risk appetite

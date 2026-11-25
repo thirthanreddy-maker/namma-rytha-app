@@ -143,7 +143,12 @@ export default function CropFailureWorkspace() {
               <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any seed variety notes or chemical spray dates…" />
             </label>
 
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div style={{ gridColumn: "1 / -1", display: "grid", gap: 6 }}>
+              {symptoms.length === 0 && (
+                <small style={{ color: "var(--amber-strong)", fontWeight: 700 }}>
+                  Select at least 1 observed field symptom above to run root-cause analysis.
+                </small>
+              )}
               <button className="primary-button full-width" type="submit" disabled={analyzeMutation.isPending || symptoms.length === 0}>
                 {analyzeMutation.isPending ? "Running root-cause analysis…" : "Run Crop Failure Analysis"}
               </button>
