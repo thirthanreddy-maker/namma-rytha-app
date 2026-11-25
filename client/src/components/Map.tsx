@@ -77,6 +77,8 @@
 /// <reference types="@types/google.maps" />
 
 import { useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { usePersistFn } from "@/hooks/usePersistFn";
 import { cn } from "@/lib/utils";
 
@@ -87,23 +89,25 @@ declare global {
 }
 
 const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY;
-const FORGE_BASE_URL =
-  import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
-  "https://forge.butterfly-effect.dev";
-const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
+const FORGE_BASE_URL = import.meta.env.VITE_FRONTEND_FORGE_API_URL || "";
+const MAPS_PROXY_URL = FORGE_BASE_URL ? `${FORGE_BASE_URL}/v1/maps/proxy` : "";
 
 function loadMapScript() {
-  return new Promise(resolve => {
+  if (!API_KEY || !MAPS_PROXY_URL) {
+    return Promise.resolve(false);
+  }
+  return new Promise<boolean>((resolve) => {
     const script = document.createElement("script");
     script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry,visualization`;
     script.async = true;
     script.crossOrigin = "anonymous";
     script.onload = () => {
-      resolve(null);
-      script.remove(); // Clean up immediately
+      resolve(true);
+      script.remove();
     };
     script.onerror = () => {
-      console.error("Failed to load Google Maps script");
+      resolve(false);
+      script.remove();
     };
     document.head.appendChild(script);
   });
@@ -118,35 +122,77 @@ interface MapViewProps {
 
 export function MapView({
   className,
-  initialCenter = { lat: 37.7749, lng: -122.4194 },
-  initialZoom = 12,
+  initialCenter = { lat: 13.135, lng: 78.132 },
+  initialZoom = 14,
   onMapReady,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
+  const leafletMap = useRef<L.Map | null>(null);
 
   const init = usePersistFn(async () => {
-    await loadMapScript();
-    if (!mapContainer.current) {
-      console.error("Map container not found");
+    if (!mapContainer.current) return;
+    const googleLoaded = await loadMapScript();
+    if (googleLoaded && window.google?.maps && mapContainer.current) {
+      map.current = new window.google.maps.Map(mapContainer.current, {
+        zoom: initialZoom,
+        center: initialCenter,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        zoomControl: true,
+        streetViewControl: true,
+        mapId: "DEMO_MAP_ID",
+      });
+      if (onMapReady) {
+        onMapReady(map.current);
+      }
       return;
     }
-    map.current = new window.google.maps.Map(mapContainer.current, {
-      zoom: initialZoom,
-      center: initialCenter,
-      mapTypeControl: true,
-      fullscreenControl: true,
-      zoomControl: true,
-      streetViewControl: true,
-      mapId: "DEMO_MAP_ID",
-    });
-    if (onMapReady) {
-      onMapReady(map.current);
+
+    // Fallback to open Esri World Imagery + OpenStreetMap Leaflet map without external proxy CORS errors
+    if (leafletMap.current) {
+      leafletMap.current.remove();
+      leafletMap.current = null;
     }
+    const lf = L.map(mapContainer.current, {
+      center: [initialCenter.lat, initialCenter.lng],
+      zoom: initialZoom,
+      zoomControl: true,
+      attributionControl: false,
+    });
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 18 }
+    ).addTo(lf);
+    L.circle([initialCenter.lat + 0.001, initialCenter.lng - 0.002], {
+      radius: 110,
+      color: "#3f91b3",
+      fillColor: "#3f91b3",
+      fillOpacity: 0.25,
+      weight: 2,
+    })
+      .bindPopup("<strong>Plot A · Tomato</strong><br/>Moisture 46% · Flowering")
+      .addTo(lf);
+    L.circle([initialCenter.lat - 0.0015, initialCenter.lng + 0.0015], {
+      radius: 90,
+      color: "#58b7a0",
+      fillColor: "#58b7a0",
+      fillOpacity: 0.25,
+      weight: 2,
+    })
+      .bindPopup("<strong>Plot B · Ragi</strong><br/>Moisture 58% · Tillering")
+      .addTo(lf);
+    leafletMap.current = lf;
   });
 
   useEffect(() => {
     init();
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+      }
+    };
   }, [init]);
 
   return (

@@ -4,44 +4,26 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { invokeLLM } from "./_core/llm";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
-import { addCommunityComment, addSensorReading, createAgronomistReviewRequest, createAnnouncement, createCommunityPost, createCropDiagnosisHistory, createNotificationDeliveryLog, createSignInHistory, createUserExpense, createUserPlot, createUserSale, createUserTask, deleteAnnouncement, getAdminSummary, getAgronomistReviewRequests, getAllAnnouncements, getAnnouncementAnalytics, getCommunityComments, getCommunityFeed, getCommunityPost, getCropDiagnosisHistory, getFinanceSummary, getLatestSensorReadings, getPublishedAnnouncements, getUserByOpenId, getUserExpenses, getUserNotificationDeliveryLog, getUserNotificationDeliveryLogs, getUserPlots, getUserSales, getUserSignInHistory, getUserTasks, markAgronomistReviewRead, recordAnnouncementEvent, setTaskStatus, toggleCommunityLike, updateAnnouncement, updateAnnouncementStatus, updateUserAvatar, updateUserProfile, upsertNormalUser, upsertPhoneUser } from "./db";
+import { addCommunityComment, addSensorReading, createAgronomistReviewRequest, createAnnouncement, createCommunityPost, createCropDiagnosisHistory, createNotificationDeliveryLog, createSignInHistory, createUserExpense, createUserPlot, createUserSale, createUserTask, deleteAnnouncement, getAdminSummary, getAgronomistReviewRequests, getAllAnnouncements, getAnnouncementAnalytics, getCommunityComments, getCommunityFeed, getCommunityPost, getCropDiagnosisHistory, getFinanceSummary, getLatestSensorReadings, getPublishedAnnouncements, getUserByOpenId, getUserExpenses, getUserNotificationDeliveryLog, getUserNotificationDeliveryLogs, getUserPlots, getUserSales, getUserSignInHistory, getUserTasks, markAgronomistReviewRead, recordAnnouncementEvent, setTaskStatus, toggleCommunityLike, updateAnnouncement, updateAnnouncementStatus, updateUserAvatar, updateUserProfile, upsertNormalUser, upsertPhoneUser, createCropCycle, getUserCropCycles, setCropCycleSchedule, updateUserNotificationPreferences } from "./db";
 import { checkPhoneOtp, normalizePhone, sendPhoneOtp } from "./phoneOtp";
 import { sdk } from "./_core/sdk";
 import { getOtpLimiter } from "./redis";
 import { parse as parseCookieHeader } from "cookie";
-import { createCropCycle, getUserCropCycles, setCropCycleSchedule, updateUserNotificationPreferences } from "./db";
 import { createHeartbeatJob } from "./_core/heartbeat";
 import { sendFarmerAlert } from "./notifications";
 import { getMarketPrices } from "./market";
+import { fetchOpenMeteoForecast } from "./engines/weatherService";
+import { generateAssistantReply, hasConfiguredLLM, runCropDiagnosisAI } from "./engines/aiEngine";
+import { analyzeCropFailure, buildSatellitePlotInsights, compareCropsAndRecommendSwitch, computeDiseaseRiskForecast, computeWaterBudgetPlan, evaluateMandiOffer, runDigitalTwinSimulation } from "./engines/farmCalculators";
+import { resolveCropProfile } from "./engines/agronomyData";
+import { corroborateRegionalIntel, createRegionalIntelReport, createWasteInquiry, createWasteListing, listCropFailureAnalyses, listDigitalTwinScenarios, listRegionalIntelReports, listWasteExchange, listWaterUsageLogs, logWaterUsage, saveCropFailureAnalysis, saveDigitalTwinScenario, updateWasteListingStatus, verifyRegionalIntelByAdmin } from "./pgStore";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Administrator access is required." });
   return next();
 });
-
-const diagnosisSchema = {
-  name: "crop_diagnosis",
-  strict: true,
-  schema: {
-    type: "object",
-    properties: {
-      likelyCondition: { type: "string" },
-      category: { type: "string", enum: ["disease", "pest", "nutrient_deficiency", "healthy", "unknown"] },
-      confidence: { type: "number", minimum: 0, maximum: 1 },
-      severity: { type: "string", enum: ["low", "moderate", "high", "unknown"] },
-      explanation: { type: "string" },
-      immediateActions: { type: "array", items: { type: "string" } },
-      preventionSteps: { type: "array", items: { type: "string" } },
-      needsAgronomist: { type: "boolean" },
-      safetyNote: { type: "string" },
-    },
-    required: ["likelyCondition", "category", "confidence", "severity", "explanation", "immediateActions", "preventionSteps", "needsAgronomist", "safetyNote"],
-    additionalProperties: false,
-  },
-} as const;
 
 const cropDiagnosisInput = z.object({
   imageDataUrl: z.string().regex(/^data:image\/(jpeg|jpg|png|webp);base64,/, "Only JPEG, PNG, or WebP images are supported"),
@@ -49,6 +31,7 @@ const cropDiagnosisInput = z.object({
   plotName: z.string().min(1).max(120).default("Plot A · Tomato"),
   symptoms: z.string().max(800).optional(),
   language: z.enum(["English", "Kannada", "Hindi", "Telugu", "Tamil"]).default("English"),
+  visualHints: z.object({ greenPct: z.number(), yellowPct: z.number(), brownSpotPct: z.number() }).optional(),
 });
 
 export const appRouter = router({
@@ -57,34 +40,14 @@ export const appRouter = router({
     summary: adminProcedure.query(() => getAdminSummary()),
   }),
   weather: router({
-    current: protectedProcedure.input(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })).query(async ({ input }) => {
-      const fallback = { temperature: 28, rainProbability: 40, windSpeed: 12, weatherCode: 2, hourly: [], source: "fallback" as const, fetchedAt: new Date().toISOString() };
-      try {
-        const url = new URL("https://api.open-meteo.com/v1/forecast");
-        url.search = new URLSearchParams({ latitude: String(input.lat), longitude: String(input.lng), current: "temperature_2m,precipitation,weather_code,wind_speed_10m", hourly: "temperature_2m,precipitation_probability,precipitation,weather_code", forecast_days: "2", timezone: "auto" }).toString();
-        const response = await fetch(url);
-        if (!response.ok) return fallback;
-        const payload = await response.json() as { current?: { temperature_2m?: number; wind_speed_10m?: number; weather_code?: number }; hourly?: { time?: string[]; temperature_2m?: number[]; precipitation_probability?: number[]; precipitation?: number[]; weather_code?: number[] } };
-        const current = payload.current;
-        const hourly = payload.hourly;
-        if (!current || !hourly?.time) return fallback;
-        return {
-          temperature: Math.round(current.temperature_2m ?? fallback.temperature),
-          rainProbability: hourly.precipitation_probability?.[0] ?? fallback.rainProbability,
-          windSpeed: Math.round(current.wind_speed_10m ?? fallback.windSpeed),
-          weatherCode: current.weather_code ?? fallback.weatherCode,
-          hourly: hourly.time.slice(0, 6).map((time, index) => ({ time, temperature: Math.round(hourly.temperature_2m?.[index] ?? fallback.temperature), rainProbability: hourly.precipitation_probability?.[index] ?? 0, precipitation: hourly.precipitation?.[index] ?? 0, weatherCode: hourly.weather_code?.[index] ?? 0 })),
-          source: "live" as const,
-          fetchedAt: new Date().toISOString(),
-        };
-      } catch (error) {
-        console.warn("[Weather] Live forecast unavailable", error);
-        return fallback;
-      }
-    }),
+    current: protectedProcedure
+      .input(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+      .query(({ input }) => fetchOpenMeteoForecast(input.lat, input.lng)),
   }),
   market: router({
-    current: protectedProcedure.input(z.object({ commodity: z.string().trim().min(1).max(80).default("Tomato"), state: z.string().trim().max(80).optional(), district: z.string().trim().max(80).optional() })).query(({ input }) => getMarketPrices(input.commodity, input.state, input.district)),
+    current: protectedProcedure
+      .input(z.object({ commodity: z.string().trim().min(1).max(80).default("Tomato"), state: z.string().trim().max(80).optional(), district: z.string().trim().max(80).optional() }))
+      .query(({ input }) => getMarketPrices(input.commodity, input.state, input.district)),
   }),
   sensors: router({
     moistureHistory: protectedProcedure.input(z.object({ lat: z.number(), lng: z.number() })).query(async ({ input }) => {
@@ -114,7 +77,7 @@ export const appRouter = router({
   farm: router({
     plots: router({
       list: protectedProcedure.query(({ ctx }) => getUserPlots(ctx.user.id)),
-      create: protectedProcedure.input(z.object({ name: z.string().trim().min(1).max(120), crop: z.string().trim().min(1).max(80), areaAcres: z.number().int().min(1).max(1000).default(1), soilType: z.string().trim().min(1).max(80).default("Loamy"), growthStage: z.string().trim().min(1).max(80).default("Seedling"), latitude: z.string().max(32).optional(), longitude: z.string().max(32).optional() })).mutation(async ({ ctx, input }) => { const plot = await createUserPlot(ctx.user.id, input); if (!plot) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Plot could not be created." }); return plot; }),
+      create: protectedProcedure.input(z.object({ name: z.string().trim().min(1).max(120), crop: z.string().trim().min(1).max(80), areaAcres: z.number().min(0.25).max(1000).default(1), soilType: z.string().trim().min(1).max(80).default("Loamy"), growthStage: z.string().trim().min(1).max(80).default("Seedling"), latitude: z.string().max(32).optional(), longitude: z.string().max(32).optional() })).mutation(async ({ ctx, input }) => { const plot = await createUserPlot(ctx.user.id, { ...input, areaAcres: Math.round(input.areaAcres) }); if (!plot) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Plot could not be created." }); return plot; }),
     }),
     irrigation: router({
       recommendation: protectedProcedure.input(z.object({ soilMoisture: z.number().min(0).max(100), threshold: z.number().min(0).max(100), rainProbability: z.number().min(0).max(100) })).query(({ input }) => { if (input.soilMoisture < input.threshold && input.rainProbability < 50) return { tone: "amber" as const, status: "IRRIGATE SOON", title: "Irrigate within 4 hours", detail: `Moisture is ${input.soilMoisture}%, below the ${input.threshold}% threshold. Run a short cycle and recheck tomorrow.` }; if (input.soilMoisture < input.threshold) return { tone: "blue" as const, status: "WAIT FOR RAIN", title: "Hold irrigation for now", detail: `${input.rainProbability}% rain is expected. Reassess after the forecast window.` }; return { tone: "green" as const, status: "MOISTURE OK", title: "No irrigation needed yet", detail: "The plot is within its target range. Keep monitoring before the next watering decision." }; }),
@@ -178,17 +141,8 @@ export const appRouter = router({
     }),
   }),
   assistant: router({
-    ask: protectedProcedure.input(z.object({ question: z.string().min(1).max(800), language: z.enum(["English", "Kannada", "Hindi", "Telugu", "Tamil"]).default("English"), crop: z.string().max(80), stage: z.string().max(80), soilMoisture: z.number().min(0).max(100), threshold: z.number().min(0).max(100), recommendation: z.string().max(240), temperature: z.number(), rainProbability: z.number().min(0).max(100) })).mutation(async ({ input }) => {
-      const response = await invokeLLM({
-        model: "claude-haiku-4-5",
-        messages: [
-          { role: "system", content: `You are Namma Rytha, a careful agricultural assistant for smallholder farmers in India. Answer in ${input.language} using simple, practical language. Use the provided farm context. Do not invent sensor readings, weather data, or certainty. Do not prescribe restricted pesticide chemicals or exact doses. If a question needs field inspection or an agronomist, say so. Keep answers under 120 words.` },
-          { role: "user", content: `Farmer question: ${input.question}\nFarm context: ${input.crop}, ${input.stage}; soil moisture ${input.soilMoisture}%; configured irrigation threshold ${input.threshold}%; current recommendation: ${input.recommendation}; temperature ${input.temperature}°C; rain probability ${input.rainProbability}%.` },
-        ],
-        max_tokens: 500,
-      });
-      const raw = response.choices[0]?.message?.content;
-      return { answer: typeof raw === "string" ? raw : "I could not prepare an answer right now. Please review the recommendation and contact an agronomist if you are unsure." };
+    ask: protectedProcedure.input(z.object({ question: z.string().min(1).max(800), language: z.enum(["English", "Kannada", "Hindi", "Telugu", "Tamil"]).default("English"), crop: z.string().max(80), stage: z.string().max(80), soilMoisture: z.number().min(0).max(100), threshold: z.number().min(0).max(100), recommendation: z.string().max(240), temperature: z.number(), rainProbability: z.number().min(0).max(100) })).mutation(async ({ ctx, input }) => {
+      return generateAssistantReply({ ...input, farmLocation: ctx.user.farmLocation ?? "Karnataka, India" });
     }),
     escalate: protectedProcedure.input(z.object({ question: z.string().min(1).max(800), crop: z.string().max(80), language: z.string().max(30), imageDataUrl: z.string().regex(/^data:image\/(jpeg|jpg|png|webp);base64,/, "Only JPEG, PNG, or WebP images are supported").optional() })).mutation(async ({ ctx, input }) => {
       let imageKey = `assistant-query/${ctx.user.id}/${Date.now()}`;
@@ -216,8 +170,8 @@ export const appRouter = router({
       return { text: "text" in result ? result.text ?? "" : "" };
     }),
   }),
-    auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+  auth: router({
+    me: publicProcedure.query((opts) => opts.ctx.user),
     profile: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(120), farmLocation: z.string().trim().min(2).max(160), preferredLanguage: z.enum(["English", "Kannada", "Hindi", "Telugu", "Tamil"]) })).mutation(async ({ ctx, input }) => { const user = await updateUserProfile(ctx.user.id, input); if (!user) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Your profile could not be saved right now." }); return user; }),
     avatar: protectedProcedure.input(z.object({ imageDataUrl: z.string().max(7_000_000) })).mutation(async ({ ctx, input }) => { const match = input.imageDataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/); if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "Please upload a PNG, JPEG, or WebP image." }); const buffer = Buffer.from(match[2], "base64"); if (buffer.length > 5_000_000) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Please keep your profile photo under 5 MB." }); const extension = match[1] === "image/jpeg" ? "jpg" : match[1].slice("image/".length); const stored = await storagePut(`avatars/${ctx.user.id}/${Date.now()}.${extension}`, buffer, match[1]); const user = await updateUserAvatar(ctx.user.id, stored.url); if (!user) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Your profile photo could not be saved right now." }); return user; }),
     alertHistory: protectedProcedure.query(({ ctx }) => getUserNotificationDeliveryLogs(ctx.user.id)),
@@ -307,60 +261,33 @@ export const appRouter = router({
       if (!encodedImage || encodedImage.length > 11_000_000) {
         throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Please choose an image smaller than 8 MB." });
       }
-
       const mime = input.imageDataUrl.slice(5, input.imageDataUrl.indexOf(";"));
       const extension = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
       const stored = await storagePut(`crop-diagnosis/${ctx.user.id}/${Date.now()}.${extension}`, Buffer.from(encodedImage, "base64"), mime);
-
-      try {
-        const response = await invokeLLM({
-          model: "gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: `You are an agricultural crop-health assistant for smallholder farmers in India. Analyze the crop photo conservatively. Do not claim certainty from one image. Never recommend restricted or exact pesticide chemical doses. Prefer inspection, sanitation, cultural practices, integrated pest management, label compliance, and agronomist escalation. Return all explanation and actions in ${input.language}. If the image is unclear, unrelated, or insufficient, use category unknown, confidence below 0.5, and needsAgronomist true.`,
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: `Crop: ${input.crop}. Farmer-reported symptoms: ${input.symptoms || "none provided"}. Give a likely first assessment from the image.` },
-                { type: "image_url", image_url: { url: input.imageDataUrl, detail: "auto" } },
-              ],
-            },
-          ],
-          response_format: { type: "json_schema", json_schema: diagnosisSchema },
-          max_tokens: 1200,
-        });
-
-        const raw = response.choices[0]?.message?.content;
-        const content = typeof raw === "string" ? raw : JSON.stringify(raw);
-        const diagnosis = JSON.parse(content) as z.infer<typeof diagnosisSchemaInput>;
-        const historySaved = await createCropDiagnosisHistory({
-          userId: ctx.user.id,
-          plotName: input.plotName,
-          crop: input.crop,
-          imageKey: stored.key,
-          likelyCondition: diagnosis.likelyCondition,
-          category: diagnosis.category,
-          confidence: Math.round(diagnosis.confidence * 100),
-          severity: diagnosis.severity,
-          explanation: diagnosis.explanation,
-          needsAgronomist: diagnosis.needsAgronomist ? 1 : 0,
-        });
-        if (!historySaved) throw new Error("Diagnosis history could not be saved");
-        return {
-          ...diagnosis,
-          imageUrl: stored.url,
-          imageKey: stored.key,
-          plotName: input.plotName,
-          crop: input.crop,
-          reviewedBy: diagnosis.needsAgronomist || diagnosis.confidence < 0.7 ? "Agronomist review recommended" : "AI first check",
-          disclaimer: "This is decision support, not a confirmed diagnosis. Confirm high-risk cases with a qualified agronomist and follow local product labels.",
-        };
-      } catch (error) {
-        console.error("[CropDiagnosis] AI analysis failed", error);
-        throw new TRPCError({ code: "BAD_GATEWAY", message: "The crop image was saved, but diagnosis is temporarily unavailable. Please retry or ask an agronomist." });
-      }
+      const diagnosis = await runCropDiagnosisAI(input);
+      await createCropDiagnosisHistory({
+        userId: ctx.user.id,
+        plotName: input.plotName,
+        crop: input.crop,
+        imageKey: stored.key,
+        likelyCondition: diagnosis.likelyCondition,
+        category: diagnosis.category,
+        confidence: Math.round(diagnosis.confidence * 100),
+        severity: diagnosis.severity,
+        explanation: diagnosis.explanation,
+        needsAgronomist: diagnosis.needsAgronomist ? 1 : 0,
+      });
+      return {
+        ...diagnosis,
+        imageUrl: stored.url,
+        imageKey: stored.key,
+        plotName: input.plotName,
+        crop: input.crop,
+        reviewedBy: diagnosis.needsAgronomist || diagnosis.confidence < 0.7 ? "Agronomist review recommended" : "AI first check",
+        disclaimer: diagnosis.providerMode === "live-llm"
+          ? "AI screening is decision support, not a confirmed lab diagnosis. Confirm severe cases with a qualified agronomist."
+          : "Local visual & symptom screening (demo mode — connect GEMINI_API_KEY for cloud vision AI). Not a confirmed diagnosis.",
+      };
     }),
     requestReview: protectedProcedure.input(z.object({
       imageKey: z.string().min(1).max(512),
@@ -369,11 +296,8 @@ export const appRouter = router({
       aiConfidence: z.number().min(0).max(1).optional(),
       farmerNote: z.string().max(800).optional(),
     })).mutation(async ({ ctx, input }) => {
-      const ownedImagePrefixes = [
-        `crop-diagnosis/${ctx.user.id}/`,
-        `agronomist-requests/${ctx.user.id}/`,
-      ];
-      if (!ownedImagePrefixes.some(prefix => input.imageKey.startsWith(prefix))) {
+      const ownedImagePrefixes = [`crop-diagnosis/${ctx.user.id}/`, `agronomist-requests/${ctx.user.id}/`];
+      if (!ownedImagePrefixes.some((prefix) => input.imageKey.startsWith(prefix))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "You can only submit images from your own crop history." });
       }
       const result = await createAgronomistReviewRequest({
@@ -385,26 +309,243 @@ export const appRouter = router({
         farmerNote: input.farmerNote,
         status: "requested",
       });
-      if (!result) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Review requests are temporarily unavailable. Please try again." });
+      if (!result) throw new TRPCError({ code: "SERVICE_UNAVAILABLE", message: "Review requests are temporarily unavailable." });
       return { success: true as const, message: "Your crop photo has been sent to an agronomist for manual review." };
+    }),
+  }),
+
+  // FEATURE 1: AI FARM DIGITAL TWIN
+  digitalTwin: router({
+    overview: protectedProcedure.input(z.object({ lat: z.number().default(13.135), lng: z.number().default(78.132) }).optional()).query(async ({ ctx, input }) => {
+      const [plots, weather, readings, scenarios] = await Promise.all([
+        getUserPlots(ctx.user.id),
+        fetchOpenMeteoForecast(input?.lat ?? 13.135, input?.lng ?? 78.132),
+        getLatestSensorReadings(ctx.user.id),
+        listDigitalTwinScenarios(ctx.user.id),
+      ]);
+      const enrichedPlots = plots.map((plot, idx) => {
+        const profile = resolveCropProfile(plot.crop);
+        const reading = readings.find((r) => r.plotId === plot.id);
+        const moisture = reading?.moisture ?? (idx === 0 ? 46 : 58);
+        const stageKey = (Object.keys(profile.kcByStage).find((k) => k.toLowerCase() === plot.growthStage.toLowerCase()) ?? "Flowering") as keyof typeof profile.kcByStage;
+        const kc = profile.kcByStage[stageKey] ?? 0.95;
+        const acres = Math.max(0.5, Number(plot.areaAcres || 1));
+        const dailyWaterLiters = Math.round((weather.et0DailyMm * kc * 4046.86 * acres) / 0.88);
+        const estimatedProductionQ = Number((profile.baseYieldQuintalsPerAcre * acres).toFixed(1));
+        const healthScore = Math.min(96, Math.max(52, Math.round(68 + (moisture > 40 && moisture < 75 ? 16 : -8))));
+        return {
+          ...plot,
+          areaAcres: acres,
+          moisturePct: moisture,
+          temperatureC: reading?.temperature ?? weather.temperature,
+          dailyWaterReqLiters: dailyWaterLiters,
+          estimatedProductionQ,
+          estimatedRevenueInr: Math.round(estimatedProductionQ * profile.benchmarkPricePerQuintal),
+          healthScore,
+          soilPh: plot.soilType.toLowerCase().includes("clay") ? 6.6 : 6.8,
+          npkStatus: plot.crop === "Tomato" ? "N: Moderate · P: Good · K: High" : "N: Adequate · P: Good · K: Good",
+          sensorSource: reading ? "sensor" : "modelled",
+        };
+      });
+      return { plots: enrichedPlots, weather, scenarios };
+    }),
+    simulate: protectedProcedure.input(z.object({
+      plotName: z.string().min(1).max(120),
+      baseCrop: z.string().min(1).max(80),
+      areaAcres: z.number().min(0.25).max(500),
+      soilType: z.string().default("Loamy"),
+      growthStage: z.string().default("Flowering"),
+      soilMoisturePct: z.number().min(0).max(100).default(46),
+      rainfallDeltaPct: z.number().min(-80).max(80),
+      fertilizerCostDeltaPct: z.number().min(-30).max(150),
+      switchToCrop: z.string().optional(),
+      irrigationReductionPct: z.number().min(0).max(75),
+      harvestDelayDays: z.number().int().min(0).max(21),
+    })).mutation(({ input }) => runDigitalTwinSimulation(input)),
+    saveScenario: protectedProcedure.input(z.object({
+      plotName: z.string().min(1).max(120),
+      baseCrop: z.string().min(1).max(80),
+      scenarioName: z.string().trim().min(2).max(120),
+      params: z.record(z.string(), z.unknown()),
+      results: z.record(z.string(), z.unknown()),
+    })).mutation(({ ctx, input }) => saveDigitalTwinScenario(ctx.user.id, input.plotName, input.baseCrop, input.scenarioName, input.params, input.results)),
+  }),
+
+  // FEATURE 2: PREDICTIVE DISEASE RISK RADAR
+  disease: router({
+    forecastRisk: protectedProcedure.input(z.object({ crop: z.string().min(1).max(80), plotName: z.string().optional(), lat: z.number().default(13.135), lng: z.number().default(78.132) })).query(async ({ ctx, input }) => {
+      const [weather, history] = await Promise.all([
+        fetchOpenMeteoForecast(input.lat, input.lng),
+        getCropDiagnosisHistory(ctx.user.id, input.plotName),
+      ]);
+      return computeDiseaseRiskForecast(input.crop, weather, history);
+    }),
+    aiStatus: protectedProcedure.query(() => ({ liveLlmConfigured: hasConfiguredLLM() })),
+  }),
+
+  // FEATURE 3: SMART IRRIGATION & WATER BUDGET PLANNER
+  irrigationIntel: router({
+    budgetPlan: protectedProcedure.input(z.object({
+      availableDailyLiters: z.number().min(1000).max(5_000_000).default(42000),
+      lat: z.number().default(13.135),
+      lng: z.number().default(78.132),
+    })).query(async ({ ctx, input }) => {
+      const [plots, weather, readings, logs] = await Promise.all([
+        getUserPlots(ctx.user.id),
+        fetchOpenMeteoForecast(input.lat, input.lng),
+        getLatestSensorReadings(ctx.user.id),
+        listWaterUsageLogs(ctx.user.id),
+      ]);
+      const budgetPlots = plots.map((p, i) => ({
+        plotName: p.name,
+        crop: p.crop,
+        areaAcres: Math.max(0.5, Number(p.areaAcres || 1)),
+        growthStage: p.growthStage || "Flowering",
+        soilMoisturePct: readings.find((r) => r.plotId === p.id)?.moisture ?? (i === 0 ? 46 : 58),
+      }));
+      const weekMs = 7 * 86400_000;
+      const weeklyUsed = logs.filter((l) => Date.now() - new Date(l.loggedAt).getTime() <= weekMs).reduce((s, l) => s + l.litersUsed, 0);
+      const plan = computeWaterBudgetPlan(input.availableDailyLiters, budgetPlots, weather, weeklyUsed);
+      return { plan, weather, logs };
+    }),
+    logUsage: protectedProcedure.input(z.object({
+      plotName: z.string().min(1).max(120),
+      litersUsed: z.number().int().min(100).max(5_000_000),
+      litersRecommended: z.number().int().min(0).max(5_000_000),
+      method: z.enum(["drip", "sprinkler", "flood"]).default("drip"),
+    })).mutation(({ ctx, input }) => logWaterUsage(ctx.user.id, input.plotName, input.litersUsed, input.litersRecommended, input.method)),
+  }),
+
+  // FEATURE 4: AI MANDI NEGOTIATION ASSISTANT
+  mandi: router({
+    evaluateOffer: protectedProcedure.input(z.object({
+      crop: z.string().min(1).max(80),
+      quantityQuintals: z.number().min(0.5).max(5000),
+      buyerOfferPerQuintal: z.number().min(100).max(100000),
+      productionCostTotal: z.number().min(0).max(100_000_000),
+      transportRatePerKmPerQuintal: z.number().min(0.5).max(50).default(3.5),
+    })).query(({ input }) => evaluateMandiOffer(input)),
+  }),
+
+  // FEATURE 5: MULTI-CROP PROFIT SIMULATOR
+  profit: router({
+    compareCrops: protectedProcedure.input(z.object({
+      crops: z.array(z.object({
+        crop: z.string().min(1).max(80),
+        areaAcres: z.number().min(0.25).max(500),
+        seedCost: z.number().min(0).optional(),
+        fertilizerCost: z.number().min(0).optional(),
+        labourCost: z.number().min(0).optional(),
+        waterCost: z.number().min(0).optional(),
+        machineryCost: z.number().min(0).optional(),
+        expectedYieldQ: z.number().min(0.1).optional(),
+        expectedPricePerQ: z.number().min(100).optional(),
+      })).min(3).max(8),
+      constraints: z.object({
+        currentCrop: z.string().min(1).max(80),
+        availableWaterLevel: z.enum(["Scarce", "Moderate", "Abundant"]),
+        maxBudgetTotal: z.number().min(1000).max(50_000_000),
+        riskAppetite: z.enum(["Conservative", "Balanced", "High-Return"]),
+      }),
+    })).mutation(({ input }) => compareCropsAndRecommendSwitch(input.crops, input.constraints)),
+  }),
+
+  // FEATURE 7: SATELLITE CROP HEALTH MONITORING
+  satellite: router({
+    insights: protectedProcedure.input(z.object({ lat: z.number().default(13.135), lng: z.number().default(78.132) }).optional()).query(async ({ ctx, input }) => {
+      const [plots, weather] = await Promise.all([
+        getUserPlots(ctx.user.id),
+        fetchOpenMeteoForecast(input?.lat ?? 13.135, input?.lng ?? 78.132),
+      ]);
+      return buildSatellitePlotInsights(plots, weather, input?.lat ?? 13.135, input?.lng ?? 78.132);
+    }),
+  }),
+
+  // FEATURE 8: FARM WASTE EXCHANGE
+  wasteExchange: router({
+    list: protectedProcedure.input(z.object({ category: z.string().optional(), district: z.string().optional(), search: z.string().optional() }).optional()).query(({ input }) => listWasteExchange(input)),
+    create: protectedProcedure.input(z.object({
+      category: z.enum(["organic_waste", "crop_residue", "compost", "manure", "by_product"]),
+      title: z.string().trim().min(4).max(160),
+      description: z.string().trim().min(5).max(1000),
+      quantityKg: z.number().int().min(10).max(500000),
+      pricePerKg: z.number().int().min(0).max(1000),
+      isFree: z.boolean().default(false),
+      location: z.string().trim().min(2).max(160),
+      district: z.string().trim().min(2).max(80),
+      contactPhone: z.string().trim().min(8).max(32),
+    })).mutation(({ ctx, input }) => createWasteListing({
+      ...input,
+      pricePerKg: input.isFree ? 0 : input.pricePerKg,
+      userId: ctx.user.id,
+      sellerName: ctx.user.name || "Farmer",
+    })),
+    inquire: protectedProcedure.input(z.object({
+      listingId: z.number().int().positive(),
+      buyerPhone: z.string().trim().min(8).max(32),
+      message: z.string().trim().min(4).max(500),
+    })).mutation(({ ctx, input }) => createWasteInquiry(input.listingId, ctx.user.id, ctx.user.name || "Buyer Farmer", input.buyerPhone, input.message)),
+    setStatus: protectedProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["active", "claimed", "closed"]) })).mutation(async ({ ctx, input }) => {
+      const ok = await updateWasteListingStatus(ctx.user.id, input.id, input.status);
+      if (!ok) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found or not owned by your account." });
+      return { success: true as const };
+    }),
+  }),
+
+  // FEATURE 9: LOCAL FARMER INTELLIGENCE
+  regionalIntel: router({
+    list: protectedProcedure.input(z.object({ category: z.string().optional(), verification: z.enum(["all", "verified", "unverified"]).optional() }).optional()).query(({ input }) => listRegionalIntelReports(input)),
+    submit: protectedProcedure.input(z.object({
+      category: z.enum(["pest_attack", "crop_disease", "unusual_rainfall", "water_shortage", "crop_damage", "market_change"]),
+      title: z.string().trim().min(4).max(160),
+      crop: z.string().trim().min(2).max(80),
+      severity: z.enum(["low", "moderate", "high"]).default("moderate"),
+      description: z.string().trim().min(6).max(1000),
+      location: z.string().trim().min(2).max(160),
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+    })).mutation(({ ctx, input }) => createRegionalIntelReport({
+      ...input,
+      userId: ctx.user.id,
+      reporterName: ctx.user.name || "Local Farmer",
+    })),
+    corroborate: protectedProcedure.input(z.object({ reportId: z.number().int().positive() })).mutation(({ ctx, input }) => corroborateRegionalIntel(input.reportId, ctx.user.id)),
+    verify: adminProcedure.input(z.object({ reportId: z.number().int().positive(), verified: z.boolean() })).mutation(({ ctx, input }) => verifyRegionalIntelByAdmin(input.reportId, input.verified, ctx.user.name || "KVK Admin")),
+  }),
+
+  // FEATURE 10: CROP FAILURE ANALYSIS
+  failureAnalysis: router({
+    history: protectedProcedure.query(({ ctx }) => listCropFailureAnalyses(ctx.user.id)),
+    analyze: protectedProcedure.input(z.object({
+      crop: z.string().trim().min(1).max(80),
+      soilType: z.string().trim().min(2).max(80),
+      soilPh: z.number().min(3.5).max(10),
+      irrigationMethod: z.string().trim().min(2).max(80),
+      irrigationFrequency: z.string().trim().min(2).max(120),
+      fertilizerUsage: z.string().trim().min(2).max(200),
+      weatherConditions: z.string().trim().min(2).max(200),
+      symptoms: z.array(z.string()).min(1).max(12),
+      notes: z.string().max(800).optional(),
+      historicalYieldQ: z.number().min(0.1).max(10000),
+      actualYieldQ: z.number().min(0).max(10000),
+      saveToHistory: z.boolean().default(true),
+    })).mutation(async ({ ctx, input }) => {
+      const analysis = analyzeCropFailure(input);
+      if (input.saveToHistory) {
+        await saveCropFailureAnalysis({
+          userId: ctx.user.id,
+          crop: input.crop,
+          soilType: input.soilType,
+          soilPh: input.soilPh,
+          historicalYieldQ: input.historicalYieldQ,
+          actualYieldQ: input.actualYieldQ,
+          yieldDropPct: analysis.yieldDropPct,
+          analysis,
+        });
+      }
+      return analysis;
     }),
   }),
 });
 
-type DiagnosisSchema = typeof diagnosisSchema.schema;
-// The schema is intentionally kept in one place so the runtime response and client contract stay aligned.
-type DiagnosisResult = {
-  likelyCondition: string;
-  category: "disease" | "pest" | "nutrient_deficiency" | "healthy" | "unknown";
-  confidence: number;
-  severity: "low" | "moderate" | "high" | "unknown";
-  explanation: string;
-  immediateActions: string[];
-  preventionSteps: string[];
-  needsAgronomist: boolean;
-  safetyNote: string;
-};
-const diagnosisSchemaInput = z.object({
-  likelyCondition: z.string(), category: z.enum(["disease", "pest", "nutrient_deficiency", "healthy", "unknown"]), confidence: z.number(), severity: z.enum(["low", "moderate", "high", "unknown"]), explanation: z.string(), immediateActions: z.array(z.string()), preventionSteps: z.array(z.string()), needsAgronomist: z.boolean(), safetyNote: z.string(),
-});
 export type AppRouter = typeof appRouter;

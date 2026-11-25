@@ -782,3 +782,203 @@ html, body, button, input, select, textarea, .landing-page, .auth-page, .app-she
 
 /* Keep every authenticated workspace aligned to the full available viewport. */
 .community-workspace, .announcements-workspace { max-width: none; }
+
+/* Dark mode contrast fixes across existing & newly added cards */
+.dark .announcement-intro, .dark .community-hero { background: linear-gradient(120deg, #1b2f24, #17231e); border-color: var(--border); color: var(--foreground); }
+.dark .announcement-intro h2, .dark .announcement-toolbar h3, .dark .community-hero h2, .dark .farm-details h3, .dark .soil-score h3, .dark .cost-list h3, .dark .diagnosis-result h4 { color: var(--foreground); }
+.dark .announcement-intro p, .dark .community-hero p, .dark .farm-detail-header p, .dark .soil-score p { color: var(--muted-foreground); }
+.dark .announcement-card, .dark .farm-details, .dark .soil-summary, .dark .case-history, .dark .market-table, .dark .cost-list, .dark .community-card, .dark .advanced-header, .dark .calendar-timeline, .dark .calendar-side, .dark .inbox-list, .dark .expert-card, .dark .admin-stat, .dark .capstone-stat, .dark .profile-hero, .dark .settings-panel, .dark .assistant-panel, .dark .inbox-panel, .dark .modal { background: var(--card); border-color: var(--border); color: var(--foreground); }
+.dark .announcement-card h3, .dark .plot-card strong, .dark .community-card-head strong, .dark .profile-hero h2, .dark .advanced-header h2, .dark .expert-card h3, .dark .admin-stat strong, .dark .capstone-stat strong, .dark .capstone-cycle-row strong, .dark .capstone-task strong, .dark .calendar-task strong { color: var(--foreground); }
+.dark .announcement-card p, .dark .plot-card small, .dark .profile-hero p, .dark .advanced-header p, .dark .capstone-stat small, .dark .capstone-stat em { color: var(--muted-foreground); }
+.dark .market-table-head { background: #1c2c24; color: var(--muted-foreground); }
+.dark .market-table-row, .dark .plot-card, .dark .cost-row, .dark .admin-announcement-row, .dark .capstone-sensor-row, .dark .capstone-task { border-color: var(--border); }
+.dark .search-box, .dark .history-filter select, .dark .secondary-button, .dark .tiny-button { background: #1b2a22; border-color: var(--border); color: var(--foreground); }
+.dark .search-box input { color: var(--foreground); }
+.dark .assistant-message { background: #1e3126; color: var(--foreground); }
+.dark .assistant-message.user { background: var(--primary); color: var(--primary-foreground); }
+.dark .assistant-context { background: #1c3125; color: var(--muted-foreground); }
+.dark .assistant-input input, .dark .modal input, .dark .modal select, .dark .modal textarea { background: #121c17; border-color: var(--border); color: var(--foreground); }
+
+/* Advanced Namma Rytha Feature Workspaces */
+.rytha-module-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.rytha-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.rytha-loading-card { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 120px; }
+.rytha-chart-box { width: 100%; margin-top: 12px; }
+
+.twin-plots-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 12px; margin-top: 16px; }
+.twin-plot-card { text-align: left; padding: 15px; border: 1px solid var(--border); border-radius: 13px; background: var(--background); color: var(--foreground); display: flex; flex-direction: column; gap: 10px; transition: border-color .16s, transform .14s; }
+.twin-plot-card:hover { border-color: var(--primary); }
+.twin-plot-card.selected { border-color: var(--primary); background: var(--green-soft); box-shadow: 0 0 0 2px rgba(36, 123, 88, 0.16); }
+.twin-plot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.twin-plot-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-foreground); }
+.twin-plot-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.twin-plot-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.twin-plot-kpis small { display: block; font-size: 8px; color: var(--muted-foreground); letter-spacing: .08em; }
+.twin-plot-kpis b { font-size: 13px; color: var(--foreground); }
+.twin-npk { color: var(--muted-foreground); font-size: 10px; }
+
+.preset-pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
+.tiny-pill { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 11px; font-weight: 600; }
+.tiny-pill:hover { border-color: var(--primary); }
+.tiny-pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.sim-controls-grid { display: grid; gap: 12px; margin-top: 8px; }
+.sim-slider { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted-foreground); }
+.sim-slider > div { display: flex; justify-content: space-between; }
+.sim-slider b { color: var(--foreground); }
+.sim-slider input[type="range"] { width: 100%; accent-color: var(--primary); }
+.sim-select { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; color: var(--muted-foreground); }
+.sim-select select, .sim-save-row input, .mandi-form-grid input, .mandi-form-grid select, .switch-constraints-grid input, .switch-constraints-grid select, .water-log-form input, .water-log-form select, .waste-inquiry-box input, .waste-inquiry-box textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--foreground); font-size: 12px; }
+.sim-save-row { display: flex; gap: 8px; margin-top: 14px; }
+.sim-save-row input { flex: 1; }
+
+.sim-kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+.sim-kpi { padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--background); display: flex; flex-direction: column; gap: 3px; }
+.sim-kpi small { font-size: 9px; font-weight: 800; color: var(--muted-foreground); letter-spacing: .08em; }
+.sim-kpi strong { font-size: 17px; color: var(--foreground); }
+.sim-kpi span { font-size: 10px; color: var(--muted-foreground); }
+
+.sim-alerts { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.sim-alert-row { display: flex; align-items: flex-start; gap: 7px; padding: 9px 11px; border-radius: 9px; background: var(--green-soft); color: var(--foreground); font-size: 11px; line-height: 1.45; }
+.sim-assumptions { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted-foreground); }
+.sim-assumptions ul { margin: 5px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+.saved-scenarios-list { display: grid; gap: 8px; margin-top: 12px; }
+.saved-scenario-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); font-size: 11px; }
+.saved-scenario-row > div { display: flex; flex-direction: column; gap: 2px; }
+.saved-scenario-row small { font-size: 10px; color: var(--muted-foreground); }
+
+/* Disease Risk & Health Report */
+.ai-mode-banner { margin: 12px 0; }
+.risk-summary-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); margin-bottom: 14px; }
+.risk-gauge { padding: 10px 16px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; min-width: 130px; }
+.risk-gauge.high { background: #fbe5e0; color: #9c3829; }
+.risk-gauge.moderate { background: var(--amber-soft); color: var(--amber-strong); }
+.risk-gauge.low { background: var(--green-soft); color: var(--green-strong); }
+.risk-gauge strong { font-size: 24px; line-height: 1; }
+.risk-gauge span { font-size: 10px; font-weight: 700; margin-top: 4px; }
+.risk-weather-pills { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted-foreground); }
+.risk-weather-pills span { display: inline-flex; align-items: center; gap: 5px; }
+.disease-risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.disease-risk-card { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); display: flex; flex-direction: column; gap: 8px; font-size: 11px; }
+.disease-risk-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.risk-drivers { margin: 4px 0 0; padding-left: 16px; color: var(--muted-foreground); font-size: 10px; display: grid; gap: 3px; }
+.health-report-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+.health-report-stats > div { padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--background); display: flex; flex-direction: column; gap: 4px; }
+.health-report-stats small { font-size: 9px; color: var(--muted-foreground); font-weight: 800; }
+
+/* Water Budget Planner */
+.budget-control-bar { display: grid; grid-template-columns: 1.3fr .9fr; gap: 14px; align-items: center; margin: 14px 0; }
+.budget-slider-label { display: flex; flex-direction: column; gap: 7px; padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--background); font-size: 11px; }
+.budget-slider-label > div { display: flex; justify-content: space-between; align-items: center; }
+.budget-slider-label input { accent-color: var(--primary); width: 100%; }
+.budget-status-card { padding: 13px 15px; border-radius: 11px; display: flex; flex-direction: column; gap: 4px; }
+.budget-status-card.surplus { background: var(--green-soft); color: var(--green-strong); }
+.budget-status-card.deficit { background: var(--amber-soft); color: var(--amber-strong); }
+.budget-status-card small { font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.budget-status-card strong { font-size: 20px; }
+.budget-status-card span { font-size: 10px; }
+.water-allocations-list { display: grid; gap: 10px; }
+.water-alloc-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--background); }
+.water-alloc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.water-alloc-main small { display: block; color: var(--muted-foreground); font-size: 10px; margin-bottom: 7px; }
+.coverage-track { height: 7px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.coverage-track span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+.water-alloc-numbers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: right; font-size: 11px; }
+.water-alloc-numbers small { display: block; font-size: 8px; color: var(--muted-foreground); }
+.water-alloc-numbers em { font-style: normal; font-weight: 700; }
+.water-log-form { display: grid; gap: 10px; margin-top: 12px; }
+.water-log-form label, .mandi-form-grid label, .switch-constraints-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; color: var(--muted-foreground); }
+
+/* Mandi Negotiation & Crop Profit Simulator */
+.mandi-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-top: 12px; }
+.verdict-headline { margin: 12px 0; font-size: 12px; line-height: 1.5; color: var(--foreground); }
+.mandi-compare-table { margin-top: 12px; }
+.mandi-compare-head, .mandi-compare-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; gap: 10px; align-items: center; padding: 11px 14px; font-size: 11px; }
+.mandi-compare-head { background: var(--green-soft); color: var(--muted-foreground); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.mandi-compare-row { border-top: 1px solid var(--border); }
+.mandi-compare-row > span:first-child { display: flex; flex-direction: column; gap: 2px; }
+.mandi-compare-row small { color: var(--muted-foreground); font-size: 10px; }
+
+.switch-constraints-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.switch-recommendation-banner { margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--green-soft); border: 1px solid var(--border); }
+.switch-rec-badge { display: flex; align-items: center; gap: 10px; color: var(--green-strong); margin-bottom: 8px; }
+.switch-rec-badge small { display: block; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.assumptions-inline { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 10px; color: var(--muted-foreground); }
+.assumptions-inline span { display: inline-flex; align-items: center; gap: 4px; }
+.profit-compare-cards { display: grid; gap: 9px; margin-top: 12px; }
+.profit-crop-mini { padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); }
+.profit-crop-mini.best { border-color: var(--primary); background: var(--green-soft); }
+.profit-crop-mini-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.profit-crop-mini-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; font-size: 11px; color: var(--muted-foreground); }
+.crop-inputs-scroll { overflow-x: auto; margin-top: 12px; }
+.crop-inputs-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 720px; }
+.crop-inputs-table th { text-align: left; font-size: 9px; color: var(--muted-foreground); padding: 8px 6px; border-bottom: 1px solid var(--border); }
+.crop-inputs-table td { padding: 7px 5px; border-bottom: 1px solid var(--border); }
+.crop-inputs-table input { width: 78px; padding: 6px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); color: var(--foreground); font-size: 11px; }
+
+/* Satellite Health, Waste Exchange, Regional Intel, Failure Analysis */
+.sat-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin: 12px 0; }
+.sat-plot-tabs { display: flex; flex-wrap: wrap; gap: 7px; }
+.sat-layer-tabs { display: flex; gap: 5px; padding: 4px; border-radius: 10px; background: var(--background); border: 1px solid var(--border); }
+.sat-layer-tabs button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 7px; font-size: 11px; font-weight: 700; color: var(--muted-foreground); background: transparent; }
+.sat-layer-tabs button.active { background: var(--primary); color: #fff; }
+.sat-map-wrapper { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); }
+.sat-leaflet-container { width: 100%; height: 360px; z-index: 1; }
+.sat-legend { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border-top: 1px solid var(--border); font-size: 10px; }
+.sat-legend-scale { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted-foreground); }
+.sat-legend-scale span { display: inline-flex; align-items: center; gap: 5px; }
+.sat-legend-scale i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.sat-zones-list { display: grid; gap: 8px; }
+
+.waste-toolbar, .intel-header-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.waste-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.waste-card { display: flex; flex-direction: column; gap: 10px; }
+.waste-card-top { display: flex; justify-content: space-between; align-items: center; }
+.waste-desc { color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
+.waste-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.waste-specs small { display: block; font-size: 8px; color: var(--muted-foreground); font-weight: 800; }
+.waste-specs b { font-size: 11px; }
+.waste-card-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; }
+.waste-actions { display: flex; gap: 6px; }
+.waste-inquiry-box { display: grid; gap: 7px; padding-top: 10px; border-top: 1px solid var(--border); }
+.waste-phone-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--primary); }
+
+.intel-filter-group { display: flex; flex-wrap: wrap; gap: 7px; }
+.intel-feed-list { display: grid; gap: 10px; max-height: 410px; overflow-y: auto; margin-top: 12px; }
+.intel-card { padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--background); display: flex; flex-direction: column; gap: 6px; font-size: 11px; }
+.intel-card.verified { border-left: 4px solid #1e7a4c; }
+.intel-card.unverified { border-left: 4px solid #d9821f; }
+.intel-card-top { display: flex; justify-content: space-between; align-items: center; }
+.intel-cat-label { font-size: 10px; color: var(--muted-foreground); text-transform: capitalize; }
+.intel-card p { color: var(--muted-foreground); line-height: 1.45; }
+.intel-meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-foreground); }
+.intel-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.intel-verifier { font-size: 10px; color: var(--green-strong); font-weight: 700; }
+.intel-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+.failure-results { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.failure-group { display: flex; flex-direction: column; gap: 8px; }
+.failure-group-title { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.failure-group.confirmed .failure-group-title { color: var(--green-strong); }
+.failure-group.possible .failure-group-title { color: var(--amber-strong); }
+.failure-cause-card { padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
+.failure-cause-card.confirmed { border-left: 4px solid var(--green-strong); }
+.failure-cause-card.possible { border-left: 4px solid var(--amber-strong); }
+.failure-cause-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.failure-recovery-box { padding: 12px; border-radius: 10px; background: var(--green-soft); font-size: 11px; }
+.failure-recovery-box ul { margin: 6px 0 0; padding-left: 16px; display: grid; gap: 4px; }
+
+/* Voice AI Quick Prompts & Auto-Speak */
+.assistant-autospeak { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 5px; font-size: 10px !important; }
+.assistant-quick-prompts { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0; }
+.assistant-quick-prompts button { padding: 5px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 9px; text-align: left; }
+.assistant-quick-prompts button:hover { border-color: var(--primary); background: var(--green-soft); }
+
+@media (max-width: 900px) {
+  .rytha-two-col, .budget-control-bar, .water-alloc-row, .switch-constraints-grid { grid-template-columns: 1fr; }
+  .mandi-compare-table { overflow-x: auto; }
+  .mandi-compare-head, .mandi-compare-row { min-width: 540px; }
+}
+@media (max-width: 580px) {
+  .mandi-form-grid, .health-report-stats, .sim-kpi-grid { grid-template-columns: 1fr; }
+}

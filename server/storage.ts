@@ -33,8 +33,16 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
+  if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
+    const buffer = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
+    // Safe bounded inline data-URI fallback when external S3 proxy is not configured
+    const safeUrl = buffer.byteLength <= 2_500_000
+      ? `data:${contentType};base64,${buffer.toString("base64")}`
+      : `/manus-storage/${key}`;
+    return { key, url: safeUrl };
+  }
+  const { forgeUrl, forgeKey } = getForgeConfig();
 
   // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");

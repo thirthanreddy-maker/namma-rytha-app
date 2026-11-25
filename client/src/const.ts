@@ -2,13 +2,11 @@ import { OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_FALLBACK, encodeOAuthState } fro
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
 export const startLogin = (returnPath = "/app") => {
-  // These are public OAuth routing values, not credentials. The fallbacks keep
-  // sign-in usable in WebDev previews where VITE_* values may not be injected
-  // into the client bundle; private OAuth and session secrets remain server-side.
-  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL || "https://manus.im";
-  const appId = import.meta.env.VITE_APP_ID || "j44ZSouSqyhJgeBh4tXcZ8";
+  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
+  const appId = import.meta.env.VITE_APP_ID;
   if (!oauthPortalUrl || !appId) {
-    throw new Error("Secure sign-in is not configured for this deployment.");
+    window.location.href = `/auth?mode=signin&next=${encodeURIComponent(returnPath.startsWith("/") ? returnPath : "/app")}`;
+    return;
   }
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const nonce = crypto.randomUUID();

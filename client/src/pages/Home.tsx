@@ -23,15 +23,20 @@ import {
   IndianRupee,
   Inbox,
   Languages,
+  Layers,
   Leaf,
   LogIn,
   Megaphone,
   MapPin,
   MessageCircle,
   Menu,
+  Microscope,
   MoreHorizontal,
   Plus,
+  Radio,
+  Recycle,
   RefreshCw,
+  Satellite,
   ScanLine,
   Search,
   Settings,
@@ -57,6 +62,15 @@ import CapstoneAdvancedViews from "@/components/CapstoneAdvancedViews";
 import FarmerProfile from "@/components/FarmerProfile";
 import CommunityWorkspace from "@/components/CommunityWorkspace";
 import AnnouncementsWorkspace from "@/components/AnnouncementsWorkspace";
+import DigitalTwinWorkspace from "@/components/features/DigitalTwinWorkspace";
+import DiseaseRiskWorkspace from "@/components/features/DiseaseRiskWorkspace";
+import WaterBudgetPlanner from "@/components/features/WaterBudgetPlanner";
+import MandiNegotiationWorkspace from "@/components/features/MandiNegotiationWorkspace";
+import CropProfitSimulator from "@/components/features/CropProfitSimulator";
+import SatelliteHealthWorkspace from "@/components/features/SatelliteHealthWorkspace";
+import WasteExchangeWorkspace from "@/components/features/WasteExchangeWorkspace";
+import LocalIntelligenceWorkspace from "@/components/features/LocalIntelligenceWorkspace";
+import CropFailureWorkspace from "@/components/features/CropFailureWorkspace";
 
 declare global {
   interface Window {
@@ -67,18 +81,23 @@ declare global {
 
 const navItems = [
   { label: "Overview", icon: Activity },
+  { label: "Digital Twin", icon: Layers },
+  { label: "My Farm", icon: Sprout },
+  { label: "Satellite health", icon: Satellite },
+  { label: "Irrigation", icon: Droplets },
+  { label: "Soil health", icon: FlaskConical },
+  { label: "Diagnose crop", icon: ScanLine },
+  { label: "Failure analysis", icon: Microscope },
+  { label: "Market rates", icon: TrendingUp },
+  { label: "Profit planner", icon: WalletCards },
+  { label: "Waste exchange", icon: Recycle },
+  { label: "Local alerts", icon: Radio },
   { label: "Announcements", icon: Megaphone },
   { label: "Community", icon: MessageCircle },
   { label: "Field lab", icon: Sprout },
   { label: "Crop calendar", icon: CalendarDays },
   { label: "Agronomist inbox", icon: UsersRound },
   { label: "Admin insights", icon: BarChart3 },
-  { label: "My Farm", icon: Sprout },
-  { label: "Irrigation", icon: Droplets },
-  { label: "Soil health", icon: FlaskConical },
-  { label: "Diagnose crop", icon: ScanLine },
-  { label: "Market rates", icon: TrendingUp },
-  { label: "Profit planner", icon: WalletCards },
   { label: "Analytics", icon: BarChart3 },
   { label: "Notifications", icon: Bell },
   { label: "Profile", icon: UserRound },
@@ -215,6 +234,7 @@ export default function Home() {
   const [diagnosisSubmitted, setDiagnosisSubmitted] = useState(false);
   const [plotName, setPlotName] = useState("");
   const [diagnosisImage, setDiagnosisImage] = useState("");
+  const [diagnosisVisualHints, setDiagnosisVisualHints] = useState<{ greenPct: number; yellowPct: number; brownSpotPct: number } | undefined>(undefined);
   const [selectedPlot, setSelectedPlot] = useState(plotOptions[0]);
   const [liveLocation, setLiveLocation] = useState({ lat: 13.135, lng: 78.132 });
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -253,7 +273,7 @@ export default function Home() {
   const [profileName, setProfileName] = useState("Ravi Kumar");
   const [profileLocation, setProfileLocation] = useState("Kolar district, Karnataka");
   const [profileLanguage, setProfileLanguage] = useState<Language>("English");
-  const createPlotMutation = trpc.farm.plots.create.useMutation({ onSuccess: (plot) => { void trpcUtils.farm.plots.list.invalidate(); setShowPlotModal(false); if (plot.ingestToken) void navigator.clipboard?.writeText(plot.ingestToken); notify(`${plotName || "New plot"} saved. Device token copied for sensor setup.`); setPlotName(""); setPlotCrop("Tomato"); setPlotArea("1"); }, onError: (error) => notify(error.message) });
+  const createPlotMutation = trpc.farm.plots.create.useMutation({ onSuccess: (plot) => { void trpcUtils.farm.plots.list.invalidate(); void trpcUtils.digitalTwin.overview.invalidate(); void trpcUtils.irrigationIntel.budgetPlan.invalidate(); void trpcUtils.satellite.insights.invalidate(); setShowPlotModal(false); if (plot.ingestToken) void navigator.clipboard?.writeText(plot.ingestToken); notify(`${plotName || "New plot"} saved. Device token copied for sensor setup.`); setPlotName(""); setPlotCrop("Tomato"); setPlotArea("1"); }, onError: (error) => notify(error.message) });
   const notificationPreferencesMutation = trpc.farm.notifications.preferences.useMutation({ onSuccess: () => { void trpcUtils.auth.me.invalidate(); notify("Notification preferences saved."); }, onError: (error) => notify(error.message) });
   const notificationTestMutation = trpc.farm.notifications.test.useMutation({ onSuccess: (result) => notify(result.message), onError: (error) => notify(error.message) });
   const profileMutation = trpc.auth.profile.useMutation({ onSuccess: (updatedUser) => { trpcUtils.auth.me.setData(undefined, updatedUser); setLanguage(updatedUser.preferredLanguage as Language); notify("Profile details saved."); }, onError: (error) => notify(error.message) });
@@ -356,10 +376,13 @@ export default function Home() {
       overlayMarkers.current[name].forEach((marker, index) => { const cropMatches = name === "weather" || mapCropFilter === "All crops" || (mapCropFilter === "Tomato" ? index === 0 : index === 1); marker.map = overlayVisibility[name] && cropMatches ? map : null; });
       overlayCircles.current[name].forEach((circle, index) => { const cropMatches = name === "weather" || mapCropFilter === "All crops" || (mapCropFilter === "Tomato" ? index === 0 : index === 1); circle.setMap(overlayVisibility[name] && cropMatches ? map : null); });
     });
-    if (moistureHeatmap.current) moistureHeatmap.current.setMap(overlayVisibility.soil ? map : null);
+    if (moistureHeatmap.current && "setMap" in moistureHeatmap.current) {
+      (moistureHeatmap.current as unknown as { setMap: (m: google.maps.Map | null) => void }).setMap(overlayVisibility.soil ? map : null);
+    }
   }, [overlayVisibility, mapCropFilter]);
 
   const setupMapOverlays = (map: google.maps.Map) => {
+    if (!window.google?.maps) return;
     const points: Record<OverlayName, Array<{ lat: number; lng: number; title: string; radius: number }>> = {
       weather: [{ lat: liveLocation.lat + 0.003, lng: liveLocation.lng + 0.002, title: `Weather station · ${weatherQuery.data?.temperature ?? 28}° · ${rainProbability}% rain`, radius: 420 }],
       irrigation: [{ lat: liveLocation.lat + 0.001, lng: liveLocation.lng - 0.002, title: "Plot A irrigation · soil moisture 46%", radius: 105 }, { lat: liveLocation.lat - 0.0015, lng: liveLocation.lng + 0.0015, title: "Plot B irrigation · soil moisture 58%", radius: 90 }],
@@ -370,7 +393,10 @@ export default function Home() {
       overlayMarkers.current[name] = points[name].map((point, index) => { const marker = new google.maps.marker.AdvancedMarkerElement({ map, position: point, title: point.title }); if (name === "soil") google.maps.event.addListener(marker, "click", () => { const plot = index === 0 ? "Plot A · Tomato" : "Plot B · Ragi"; const live = sensorHistoryQuery.data?.plots[plot]; setSensorTooltip({ crop: index === 0 ? "Tomato" : "Ragi", plot, moisture: live?.moisture ?? (index === 0 ? 46 : 58), temperature: weatherQuery.data?.temperature ?? 28, health: index === 0 ? 72 : 74, updated: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), trend: live?.values ?? (index === 0 ? [58, 53, 55, 49, 46, 50, 46] : [62, 60, 57, 55, 58, 56, 58]) }); }); return marker; });
       overlayCircles.current[name] = points[name].map((point) => new google.maps.Circle({ map, center: point, radius: point.radius, fillColor: color, fillOpacity: name === "weather" ? 0.08 : 0.15, strokeColor: color, strokeOpacity: 0.55, strokeWeight: 1.5 }));
     });
-    moistureHeatmap.current = new google.maps.visualization.HeatmapLayer({ map, data: points.soil.map((point, index) => ({ location: new google.maps.LatLng(point.lat, point.lng), weight: index === 0 ? 0.46 : 0.58 })), radius: 55, opacity: 0.72, gradient: ["rgba(0, 0, 255, 0)", "#2e86ab", "#58b7a0", "#f2c14e", "#e4572e"] });
+    const HeatmapCtor = google.maps.visualization?.HeatmapLayer as unknown as (new (opts: Record<string, unknown>) => google.maps.visualization.HeatmapLayer) | undefined;
+    if (HeatmapCtor) {
+      moistureHeatmap.current = new HeatmapCtor({ map, data: points.soil.map((point, index) => ({ location: new google.maps.LatLng(point.lat, point.lng), weight: index === 0 ? 0.46 : 0.58 })), radius: 55, opacity: 0.72, gradient: ["rgba(0, 0, 255, 0)", "#2e86ab", "#58b7a0", "#f2c14e", "#e4572e"] });
+    }
   };
 
   const t = copy[language];
@@ -558,19 +584,24 @@ export default function Home() {
   );
 
   const renderFeature = () => {
+    if (activeView === "Digital Twin") return <FeaturePage fullWidth eyebrow="AI FARM DIGITAL TWIN" title="Simulate tomorrow on your virtual farm." description="Monitor plot stages, water needs, and run What-If scenarios for drought, costs, crop switching, and harvest delays." icon={Layers} tone="green"><DigitalTwinWorkspace lat={liveLocation.lat} lng={liveLocation.lng} onToast={notify} onOpenAddPlot={() => setShowPlotModal(true)} /></FeaturePage>;
+    if (activeView === "Satellite health") return <FeaturePage fullWidth eyebrow="SATELLITE FIELD MONITORING" title="See crop vigor zone by zone from orbit." description="Inspect registered plots on satellite imagery with vegetation indices, stressed sub-zones, and historical comparisons." icon={Satellite} tone="blue"><SatelliteHealthWorkspace lat={liveLocation.lat} lng={liveLocation.lng} /></FeaturePage>;
+    if (activeView === "Waste exchange") return <FeaturePage fullWidth eyebrow="CIRCULAR FARM ECONOMY" title="Turn farm residues into soil value and extra income." description="Buy, sell, or trade compost, manure, crop straw, and organic by-products with nearby farmers." icon={Recycle} tone="green"><WasteExchangeWorkspace onToast={notify} /></FeaturePage>;
+    if (activeView === "Local alerts") return <FeaturePage fullWidth eyebrow="LOCAL FARMER INTELLIGENCE" title="Regional pest, weather, and market radar." description="Share field observations with neighbors and separate community reports from verified regional alerts." icon={Radio} tone="amber"><LocalIntelligenceWorkspace lat={liveLocation.lat} lng={liveLocation.lng} onToast={notify} /></FeaturePage>;
+    if (activeView === "Failure analysis") return <FeaturePage fullWidth eyebrow="CROP FAILURE INVESTIGATION" title="Understand yield drops before planting next season." description="Analyze soil, irrigation, nutrition, and symptoms to distinguish strong metric indicators from possible causes." icon={Microscope} tone="purple"><CropFailureWorkspace /></FeaturePage>;
     if (activeView === "Announcements") return <FeaturePage eyebrow="APP COMMUNICATIONS" title="Keep farmers in the loop." description="Share new app capabilities, practical farm tips, and seasonal messages in one clear announcement board." icon={Megaphone} tone="amber"><AnnouncementsWorkspace isAdmin={user?.role === "admin"} onToast={notify} onNavigate={(view) => goTo(view as ViewName)} /></FeaturePage>;
     if (activeView === "Community") return <FeaturePage eyebrow="FARMER COMMUNITY" title="Grow together, one field story at a time." description="Share crop progress, practical lessons, and short reels with farmers building better seasons across India." icon={MessageCircle} tone="green"><CommunityWorkspace onToast={notify} /></FeaturePage>;
     if (activeView === "Crop calendar" || activeView === "Agronomist inbox" || activeView === "Admin insights") return <FeaturePage eyebrow={activeView === "Crop calendar" ? "CROP PLANNING" : activeView === "Agronomist inbox" ? "AGRONOMIST NETWORK" : "ADMIN CONSOLE"} title={activeView} description="A capstone workflow built on protected data, clear farmer actions, and measurable field outcomes." icon={activeView === "Crop calendar" ? CalendarDays : activeView === "Agronomist inbox" ? UsersRound : BarChart3} tone={activeView === "Crop calendar" ? "green" : activeView === "Agronomist inbox" ? "purple" : "blue"}><CapstoneAdvancedViews view={activeView} onToast={notify} /></FeaturePage>;
     if (activeView === "Field lab") return <FeaturePage fullWidth eyebrow="CAPSTONE FIELD LAB" title="Run the farm like a living system." description="Connect crop health, sensor signals, irrigation decisions, field work, and farm economics in one place." icon={Sprout} tone="green"><CapstoneWorkspace soilMoisture={soilMoisture} rainProbability={rainProbability} temperature={weatherQuery.data?.temperature ?? 28} selectedPlot={selectedPlot} onToast={notify} /></FeaturePage>;
-    if (activeView === "Irrigation") return <FeaturePage eyebrow="SMART IRRIGATION" title="Water only when your crop needs it." description="Recommendations use the selected plot’s soil-moisture threshold and the latest local forecast." icon={Droplets} tone="blue"><div className={`recommendation-card ${irrigationRecommendation.tone === "blue" ? "blue-card" : irrigationRecommendation.tone === "amber" ? "cream-card" : "green-card"}`}><div className="recommendation-top"><span className={`status-pill ${irrigationRecommendation.tone}`}><span className="pulse-dot" /> {irrigationRecommendation.status}</span><CloudSun size={30} /></div><h3>{irrigationRecommendation.title}</h3><p>{irrigationRecommendation.detail}</p><div className="recommendation-facts"><span>Soil moisture <strong>{soilMoisture}%</strong></span><span>Rain chance <strong>{rainProbability}%</strong></span><span>Weather <strong>{weatherQuery.data?.temperature ?? 28}°</strong></span></div><div className="recommendation-actions"><button className="primary-button" onClick={() => notify(irrigationRecommendation.status === "IRRIGATE SOON" ? "Irrigation task added for this plot." : "Irrigation recommendation saved.")}>Save this recommendation</button><button className="secondary-button" onClick={() => setShowPrintReport(true)}>Export PDF</button><button className="secondary-button" onClick={() => notify("Manual irrigation entry opened.")}>Enter manually</button></div><small className="data-source-note">{weatherQuery.data?.source === "live" ? "Live Open-Meteo forecast" : "Saved forecast fallback"} · Updated {weatherQuery.data?.fetchedAt ? new Date(weatherQuery.data.fetchedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "just now"}</small></div><ChartCard title={`Soil moisture · ${selectedPlot}`} labels={["09 Sep", "10", "11", "12", "13", "14", "Today"]} values={[68, 57, 51, 43, 54, 49, soilMoisture]} color="blue" /></FeaturePage>;
+    if (activeView === "Irrigation") return <FeaturePage fullWidth eyebrow="SMART IRRIGATION" title="Water only when your crop needs it." description="Recommendations use the selected plot’s soil-moisture threshold, live Open-Meteo ET0, and multi-crop water budgeting." icon={Droplets} tone="blue"><div className="feature-content"><div className={`recommendation-card ${irrigationRecommendation.tone === "blue" ? "blue-card" : irrigationRecommendation.tone === "amber" ? "cream-card" : "green-card"}`}><div className="recommendation-top"><span className={`status-pill ${irrigationRecommendation.tone}`}><span className="pulse-dot" /> {irrigationRecommendation.status}</span><CloudSun size={30} /></div><h3>{irrigationRecommendation.title}</h3><p>{irrigationRecommendation.detail}</p><div className="recommendation-facts"><span>Soil moisture <strong>{soilMoisture}%</strong></span><span>Rain chance <strong>{rainProbability}%</strong></span><span>Weather <strong>{weatherQuery.data?.temperature ?? 28}°</strong></span></div><div className="recommendation-actions"><button className="primary-button" onClick={() => notify(irrigationRecommendation.status === "IRRIGATE SOON" ? "Irrigation task added for this plot." : "Irrigation recommendation saved.")}>Save this recommendation</button><button className="secondary-button" onClick={() => setShowPrintReport(true)}>Export PDF</button><button className="secondary-button" onClick={() => notify("Manual irrigation entry opened.")}>Enter manually</button></div><small className="data-source-note">{weatherQuery.data?.source === "live" ? "Live Open-Meteo forecast" : "Saved forecast fallback"} · Updated {weatherQuery.data?.fetchedAt ? new Date(weatherQuery.data.fetchedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "just now"}</small></div><ChartCard title={`Soil moisture · ${selectedPlot}`} labels={["09 Sep", "10", "11", "12", "13", "14", "Today"]} values={[68, 57, 51, 43, 54, 49, soilMoisture]} color="blue" /></div><WaterBudgetPlanner lat={liveLocation.lat} lng={liveLocation.lng} onToast={notify} /></FeaturePage>;
     if (activeView === "Soil health") return <FeaturePage eyebrow="SOIL HEALTH" title="A clearer picture of your soil." description="Enter a soil test to turn laboratory numbers into practical next steps. Your current profile is based on the last test from 28 August 2026." icon={FlaskConical} tone="amber"><div className="soil-summary"><div className="soil-score"><div className="score-circle"><strong>72</strong><span>/100</span></div><div><span className="status-pill green">GOOD BALANCE</span><h3>Keep building organic matter</h3><p>Your pH is healthy. Nitrogen is slightly low for the current tomato growth stage.</p></div></div><div className="nutrient-grid"><Nutrient label="Nitrogen" value="Low" amount="118 kg/ha" tone="amber" /><Nutrient label="Phosphorus" value="Adequate" amount="42 kg/ha" tone="green" /><Nutrient label="Potassium" value="Good" amount="188 kg/ha" tone="blue" /><Nutrient label="pH level" value="Healthy" amount="6.8 pH" tone="purple" /></div></div><div className="recommendation-card cream-card"><div className="recommendation-top"><span className="eyebrow">NEXT BEST ACTION</span><Leaf size={25} /></div><h3>Apply 2 bags of compost this week</h3><p>Organic matter will improve moisture retention and support the nitrogen application planned for week 7.</p><button className="primary-button" onClick={() => notify("Compost task added to your farm plan.")}>Add to farm plan <Plus size={16} /></button></div></FeaturePage>;
-    if (activeView === "Diagnose crop") return <FeaturePage eyebrow="CROP DIAGNOSIS" title="Spot problems before they spread." description="Start with a clear photo in natural light. Namma Rytha gives a confidence-labelled first check and escalates uncertain cases to an agronomist." icon={ScanLine} tone="purple"><button className="diagnose-hero" onClick={() => setShowDiagnosisModal(true)}><span className="scan-corners"><Camera size={28} /></span><strong>Upload a crop photo</strong><span>Tap to select from your phone or drag an image here</span><small>JPG or PNG · max 8 MB · data saver enabled</small></button><div className="case-history"><div className="panel-title"><div><span className="eyebrow">HEALTH TIMELINE</span><h3>Diagnosis history</h3><p>Track changes for one crop plot over time.</p></div><div className="history-filter"><select value={selectedPlot} onChange={(event) => setSelectedPlot(event.target.value)}>{plotOptions.map((plot) => <option key={plot}>{plot}</option>)}</select><span>{historyQuery.data?.length ?? 0} checks</span></div></div><DiagnosisHistory items={historyQuery.data ?? []} loading={historyQuery.isLoading} /></div></FeaturePage>;
-    if (activeView === "Market rates") return <FeaturePage eyebrow="MARKET INTELLIGENCE" title="Sell with more confidence." description="Compare nearby mandi prices, distance, and recent movement before you decide where to take your harvest." icon={TrendingUp} tone="green"><div className="market-toolbar"><div className="search-box"><Search size={17} /><input placeholder="Search commodity" defaultValue="Tomato" /></div><button className="secondary-button"><MapPin size={16} /> Near me</button><button className="secondary-button"><CalendarDays size={16} /> 15 Sep</button></div><div className="market-table"><div className="market-table-head"><span>MANDI</span><span>MODAL PRICE</span><span>CHANGE</span><span>DISTANCE</span></div>{marketRows.map((row) => <div className="market-table-row" key={row.mandi}><span><strong>{row.mandi}</strong><small>Tomato · all varieties</small></span><strong className="table-price">{row.price}<small>/ quintal</small></strong><span className={row.trend === "up" ? "positive" : "negative"}>{row.change}</span><span>{row.distance}</span><button className="tiny-button" onClick={() => notify(`${row.mandi} added to your watchlist.`)}><Plus size={14} /></button></div>)}</div><div className="market-disclaimer"><CircleAlert size={16} /><span>Prices are a demo snapshot for this build. Always confirm with the mandi before transporting produce.</span></div></FeaturePage>;
-    if (activeView === "Profit planner") return <FeaturePage eyebrow="CROP ECONOMICS" title="See the harvest before it happens." description="Track real expenses against expected revenue and adjust scenarios as your season changes." icon={WalletCards} tone="green"><div className="profit-layout"><div className="profit-card"><span className="eyebrow">EXPECTED SCENARIO</span><div className="profit-value">₹82,400</div><span className="profit-label">Estimated net profit</span><div className="profit-breakdown"><div><span>Total cost</span><strong>₹{expenses.reduce((sum, item) => sum + item.amount, 0).toLocaleString("en-IN")}</strong></div><div><span>Expected revenue</span><strong>₹1,47,000</strong></div><div><span>Break-even price</span><strong>₹1,245/q</strong></div></div></div><div className="cost-list"><div className="panel-title"><div><h3>Cost assumptions</h3><p>Tomato · 2.4 acres</p></div><button className="icon-button" onClick={() => setShowExpenseModal(true)} aria-label="Add expense"><Plus size={17} /></button></div>{expenses.map((expense) => <CostRow key={expense.label} label={expense.label} value={`₹${expense.amount.toLocaleString("en-IN")}`} />)}<button className="secondary-button full-width" onClick={() => setShowExpenseModal(true)}>Log an expense <Plus size={15} /></button><button className="primary-button full-width" onClick={() => notify("Profit plan saved to your farm.")}>Save this scenario</button></div></div><ChartCard title="Profit sensitivity · selling price" labels={["₹1,500", "₹1,800", "₹2,100", "₹2,400", "₹2,700"]} values={[28, 43, 58, 75, 90]} color="green" /></FeaturePage>;
+    if (activeView === "Diagnose crop") return <FeaturePage fullWidth eyebrow="CROP DIAGNOSIS & WEATHER RISK" title="Spot problems before they spread." description="Start with a clear photo in natural light, review 7-day predictive weather disease risk, and generate crop health reports." icon={ScanLine} tone="purple"><div className="feature-content"><button className="diagnose-hero" onClick={() => setShowDiagnosisModal(true)}><span className="scan-corners"><Camera size={28} /></span><strong>Upload a crop photo</strong><span>Tap to select from your phone or drag an image here</span><small>JPG or PNG · max 8 MB · data saver enabled</small></button><div className="case-history"><div className="panel-title"><div><span className="eyebrow">HEALTH TIMELINE</span><h3>Diagnosis history</h3><p>Track changes for one crop plot over time.</p></div><div className="history-filter"><select value={selectedPlot} onChange={(event) => setSelectedPlot(event.target.value)}>{plotOptions.map((plot) => <option key={plot}>{plot}</option>)}</select><span>{historyQuery.data?.length ?? 0} checks</span></div></div><DiagnosisHistory items={historyQuery.data ?? []} loading={historyQuery.isLoading} /></div></div><DiseaseRiskWorkspace selectedPlot={selectedPlot} lat={liveLocation.lat} lng={liveLocation.lng} historyItems={historyQuery.data ?? []} /></FeaturePage>;
+    if (activeView === "Market rates") return <FeaturePage fullWidth eyebrow="MARKET & NEGOTIATION INTELLIGENCE" title="Sell with more confidence." description="Compare nearby mandi prices, calculate transport & commission costs, and test any buyer offer before closing a deal." icon={TrendingUp} tone="green"><div className="market-toolbar"><div className="search-box"><Search size={17} /><input placeholder="Search commodity" defaultValue="Tomato" /></div><button className="secondary-button"><MapPin size={16} /> Near me</button><button className="secondary-button"><CalendarDays size={16} /> Today</button></div><div className="market-table"><div className="market-table-head"><span>MANDI</span><span>MODAL PRICE</span><span>CHANGE</span><span>DISTANCE</span></div>{marketRows.map((row) => <div className="market-table-row" key={row.mandi}><span><strong>{row.mandi}</strong><small>Tomato · all varieties</small></span><strong className="table-price">{row.price}<small>/ quintal</small></strong><span className={row.trend === "up" ? "positive" : "negative"}>{row.change}</span><span>{row.distance}</span><button className="tiny-button" onClick={() => notify(`${row.mandi} added to your watchlist.`)}><Plus size={14} /></button></div>)}</div><div className="market-disclaimer"><CircleAlert size={16} /><span>Benchmark demo rates shown unless CEDA_AGMARKNET_API_KEY is connected. Confirm with your APMC before dispatch.</span></div><MandiNegotiationWorkspace trackedExpensesTotal={expenses.reduce((sum, item) => sum + item.amount, 0)} onToast={notify} /></FeaturePage>;
+    if (activeView === "Profit planner") return <FeaturePage fullWidth eyebrow="CROP ECONOMICS & SWITCHING" title="See the harvest before it happens." description="Track season expenses and simulate 3+ competing crops side by side with a Crop Switching Recommendation Engine." icon={WalletCards} tone="green"><div className="profit-layout"><div className="profit-card"><span className="eyebrow">EXPECTED SCENARIO</span><div className="profit-value">₹82,400</div><span className="profit-label">Estimated net profit</span><div className="profit-breakdown"><div><span>Total cost</span><strong>₹{expenses.reduce((sum, item) => sum + item.amount, 0).toLocaleString("en-IN")}</strong></div><div><span>Expected revenue</span><strong>₹1,47,000</strong></div><div><span>Break-even price</span><strong>₹1,245/q</strong></div></div></div><div className="cost-list"><div className="panel-title"><div><h3>Cost assumptions</h3><p>Tomato · 2.4 acres</p></div><button className="icon-button" onClick={() => setShowExpenseModal(true)} aria-label="Add expense"><Plus size={17} /></button></div>{expenses.map((expense) => <CostRow key={expense.label} label={expense.label} value={`₹${expense.amount.toLocaleString("en-IN")}`} />)}<button className="secondary-button full-width" onClick={() => setShowExpenseModal(true)}>Log an expense <Plus size={15} /></button><button className="primary-button full-width" onClick={() => notify("Profit plan saved to your farm.")}>Save this scenario</button></div></div><CropProfitSimulator /></FeaturePage>;
     if (activeView === "Analytics") return <FeaturePage eyebrow="FARM ANALYTICS" title="See what is changing on your farm." description="Track task completion, crop value, and soil trends in one place so every decision is easier to measure." icon={BarChart3} tone="blue"><div className="metric-grid"><MetricCard icon={CheckCircle2} label="Tasks completed" value={`${completedTasks}/${tasks.length}`} note="This week" trend="up" tone="green" /><MetricCard icon={IndianRupee} label="Tracked expenses" value={`₹${expenses.reduce((sum, item) => sum + item.amount, 0).toLocaleString("en-IN")}`} note="Across all plots" trend="neutral" tone="amber" /><MetricCard icon={TrendingUp} label="Crop value trend" value="+8.4%" note="Compared with last week" trend="up" tone="blue" /></div><ChartCard title="Farm performance · last 7 days" labels={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]} values={[42, 54, 48, 67, 72, 76, 84]} color="blue" /><div className="panel"><div className="panel-title"><div><h3>Recommended focus</h3><p>Use these signals to plan your next field visit.</p></div><Sparkles size={20} /></div><div className="recommendation-facts"><span>Best action <strong>Finish irrigation tasks</strong></span><span>Strongest crop <strong>Tomato</strong></span><span>Next review <strong>Tomorrow morning</strong></span></div></div></FeaturePage>;
     if (activeView === "Notifications") return <FeaturePage eyebrow="FARM ALERTS" title="Stay ahead of farm changes." description="Weather, task, and crop reminders are collected here so important actions do not get missed." icon={Bell} tone="amber"><div className="notification-settings-layout"><div className="panel"><NotificationCenter rainProbability={rainProbability} temperature={weatherQuery.data?.temperature ?? 28} onClose={() => setActiveView("Overview")} /></div><section className="panel notification-preferences"><div className="panel-title"><div><span className="eyebrow">DELIVERY PREFERENCES</span><h3>Choose how we reach you</h3><p>Scheduled irrigation checks use your selected channel.</p></div><Bell className="muted-icon" size={21} /></div><label>Phone number in international format<input value={notificationPhone} onChange={(event) => setNotificationPhone(event.target.value)} placeholder="+919876543210" /></label><label>Alert channel<select value={notificationChannel} onChange={(event) => setNotificationChannel(event.target.value as typeof notificationChannel)}><option value="in_app">In-app only</option><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></label><div className="notification-preference-actions"><button className="primary-button" onClick={() => notificationPreferencesMutation.mutate({ phoneNumber: notificationPhone || null, notificationChannel })} disabled={notificationPreferencesMutation.isPending}>Save preferences</button>{notificationChannel !== "in_app" && <button className="secondary-button" onClick={() => notificationTestMutation.mutate({ channel: notificationChannel, phoneNumber: notificationPhone })} disabled={notificationTestMutation.isPending}>Send test</button>}</div><small className="data-source-note">SMS/WhatsApp delivery requires Twilio credentials configured by the project owner. Without them, the app keeps alerts in-app.</small></section></div></FeaturePage>;
     if (activeView === "Profile") return <FeaturePage eyebrow="FARMER ACCOUNT" title="Your profile, your alert choices." description="Manage the number and delivery channel used for irrigation, weather, and crop reminders." icon={UserRound} tone="green"><FarmerProfile name={profileName} location={profileLocation} language={profileLanguage} avatarUrl={user?.avatarUrl ?? null} phone={notificationPhone} channel={notificationChannel} profileSaving={profileMutation.isPending} avatarSaving={avatarMutation.isPending} saving={notificationPreferencesMutation.isPending} testing={notificationTestMutation.isPending} alertHistory={alertHistoryQuery.data ?? []} alertHistoryLoading={alertHistoryQuery.isLoading} signInHistory={signInHistoryQuery.data ?? []} signInHistoryLoading={signInHistoryQuery.isLoading} retryingId={alertRetryMutation.isPending ? alertRetryMutation.variables?.id ?? null : null} onNameChange={setProfileName} onLocationChange={setProfileLocation} onLanguageChange={setProfileLanguage} onAvatarUpload={(imageDataUrl) => avatarMutation.mutate({ imageDataUrl })} onPhoneChange={setNotificationPhone} onChannelChange={setNotificationChannel} onProfileSave={() => profileMutation.mutate({ name: profileName, farmLocation: profileLocation, preferredLanguage: profileLanguage })} onSave={() => notificationPreferencesMutation.mutate({ phoneNumber: notificationPhone || null, notificationChannel })} onTest={() => notificationTestMutation.mutate({ channel: notificationChannel as "sms" | "whatsapp", phoneNumber: notificationPhone })} onRetry={(id) => alertRetryMutation.mutate({ id })} onToast={notify} onResetScrollPositions={resetScrollPositions} /></FeaturePage>;
-    return <FeaturePage eyebrow="MY FARM" title="Your farm, in one simple view." description="Keep your fields, crop cycles, and seasonal actions organized. You can add another plot whenever you’re ready." icon={Sprout} tone="green"><div className="farm-overview"><div className="farm-map live-map"><MapView initialCenter={liveLocation} initialZoom={14} onMapReady={(map) => { mapRef.current = map; locationMarker.current = new google.maps.marker.AdvancedMarkerElement({ map, position: liveLocation, title: "Your live location" }); setupMapOverlays(map); }} /><div className="map-live-chip"><span className="online-dot" /> Live location</div><select className="map-crop-filter" value={mapCropFilter} onChange={(event) => setMapCropFilter(event.target.value as typeof mapCropFilter)}><option>All crops</option><option>Tomato</option><option>Ragi</option></select><div className="map-overlay-controls">{(Object.keys(farmOverlays) as OverlayName[]).map((name) => <button key={name} className={`overlay-toggle ${overlayVisibility[name] ? "active" : ""}`} onClick={() => setOverlayVisibility((current) => ({ ...current, [name]: !current[name] }))}><span style={{ backgroundColor: farmOverlays[name].color }} /> {farmOverlays[name].label}</button>)}</div><div className="map-label label-one"><MapPin size={14} /> Plot A · Tomato</div><div className="map-label label-two"><MapPin size={14} /> Plot B · Ragi</div><div className="heatmap-legend"><span>SOIL MOISTURE HEATMAP</span><div className="heatmap-gradient" /><div className="heatmap-labels"><small>Dry</small><small>Optimal</small><small>Wet</small></div></div>{sensorTooltip && <div className="sensor-tooltip"><button onClick={() => setSensorTooltip(null)} aria-label="Close sensor details"><X size={13} /></button><span className="eyebrow">SENSOR DETAIL</span><strong>{sensorTooltip.plot}</strong><div className="sensor-reading"><span>Moisture <b>{sensorTooltip.moisture}%</b></span><span>Health <b>{sensorTooltip.health}/100</b></span><span>Temp <b>{sensorTooltip.temperature}°</b></span></div><span className="sensor-chart-title">7-day moisture trend</span><div className="sensor-chart">{sensorTooltip.trend.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${Math.max(18, value * 1.25)}%` }} title={`${value}%`} />)}</div><div className="sensor-chart-labels"><small>−6d</small><small>Today</small></div><small>Updated {sensorTooltip.updated} · Tap a sensor marker for details</small></div>}</div><div className="farm-details"><div className="farm-detail-header"><div><span className="eyebrow">HEGGANAHALLI FARM</span><h3>2.4 acres · 2 active plots</h3><p><MapPin size={14} /> Kolar district, Karnataka</p></div><button className="secondary-button" onClick={() => setShowPlotModal(true)}><Plus size={16} /> Add plot</button></div><div className="overlay-insights"><OverlayInsight name="Weather" detail={`${weatherQuery.data?.temperature ?? 28}° · ${rainProbability}% rain`} tone="weather" /><OverlayInsight name="Irrigation" detail={`${irrigationRecommendation.status} · ${soilMoisture}% moisture`} tone="irrigation" /><OverlayInsight name="Soil sensors" detail={farmOverlays.soil.detail} tone="soil" /></div><div className="plot-list"><div className="plot-card"><span className="plot-avatar tomato">T</span><div><strong>Plot A · Tomato</strong><small>1.6 acres · flowering stage</small></div><span className="plot-health">Healthy · 86%</span><ChevronRight size={16} /></div><div className="plot-card"><span className="plot-avatar ragi">R</span><div><strong>Plot B · Ragi</strong><small>0.8 acres · tillering stage</small></div><span className="plot-health">Good · 74%</span><ChevronRight size={16} /></div></div></div></div></FeaturePage>;
+    return <FeaturePage eyebrow="MY FARM" title="Your farm, in one simple view." description="Keep your fields, crop cycles, and seasonal actions organized. You can add another plot whenever you’re ready." icon={Sprout} tone="green"><div className="farm-overview"><div className="farm-map live-map"><MapView initialCenter={liveLocation} initialZoom={14} onMapReady={(map) => { mapRef.current = map; if (window.google?.maps?.marker) { locationMarker.current = new google.maps.marker.AdvancedMarkerElement({ map, position: liveLocation, title: "Your live location" }); } setupMapOverlays(map); }} /><div className="map-live-chip"><span className="online-dot" /> Live location</div><select className="map-crop-filter" value={mapCropFilter} onChange={(event) => setMapCropFilter(event.target.value as typeof mapCropFilter)}><option>All crops</option><option>Tomato</option><option>Ragi</option></select><div className="map-overlay-controls">{(Object.keys(farmOverlays) as OverlayName[]).map((name) => <button key={name} className={`overlay-toggle ${overlayVisibility[name] ? "active" : ""}`} onClick={() => setOverlayVisibility((current) => ({ ...current, [name]: !current[name] }))}><span style={{ backgroundColor: farmOverlays[name].color }} /> {farmOverlays[name].label}</button>)}</div><div className="map-label label-one"><MapPin size={14} /> Plot A · Tomato</div><div className="map-label label-two"><MapPin size={14} /> Plot B · Ragi</div><div className="heatmap-legend"><span>SOIL MOISTURE HEATMAP</span><div className="heatmap-gradient" /><div className="heatmap-labels"><small>Dry</small><small>Optimal</small><small>Wet</small></div></div>{sensorTooltip && <div className="sensor-tooltip"><button onClick={() => setSensorTooltip(null)} aria-label="Close sensor details"><X size={13} /></button><span className="eyebrow">SENSOR DETAIL</span><strong>{sensorTooltip.plot}</strong><div className="sensor-reading"><span>Moisture <b>{sensorTooltip.moisture}%</b></span><span>Health <b>{sensorTooltip.health}/100</b></span><span>Temp <b>{sensorTooltip.temperature}°</b></span></div><span className="sensor-chart-title">7-day moisture trend</span><div className="sensor-chart">{sensorTooltip.trend.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${Math.max(18, value * 1.25)}%` }} title={`${value}%`} />)}</div><div className="sensor-chart-labels"><small>−6d</small><small>Today</small></div><small>Updated {sensorTooltip.updated} · Tap a sensor marker for details</small></div>}</div><div className="farm-details"><div className="farm-detail-header"><div><span className="eyebrow">HEGGANAHALLI FARM</span><h3>2.4 acres · 2 active plots</h3><p><MapPin size={14} /> Kolar district, Karnataka</p></div><button className="secondary-button" onClick={() => setShowPlotModal(true)}><Plus size={16} /> Add plot</button></div><div className="overlay-insights"><OverlayInsight name="Weather" detail={`${weatherQuery.data?.temperature ?? 28}° · ${rainProbability}% rain`} tone="weather" /><OverlayInsight name="Irrigation" detail={`${irrigationRecommendation.status} · ${soilMoisture}% moisture`} tone="irrigation" /><OverlayInsight name="Soil sensors" detail={farmOverlays.soil.detail} tone="soil" /></div><div className="plot-list"><div className="plot-card"><span className="plot-avatar tomato">T</span><div><strong>Plot A · Tomato</strong><small>1.6 acres · flowering stage</small></div><span className="plot-health">Healthy · 86%</span><ChevronRight size={16} /></div><div className="plot-card"><span className="plot-avatar ragi">R</span><div><strong>Plot B · Ragi</strong><small>0.8 acres · tillering stage</small></div><span className="plot-health">Good · 74%</span><ChevronRight size={16} /></div></div></div></div></FeaturePage>;
   };
 
   return (
@@ -592,7 +623,7 @@ export default function Home() {
       {showTaskModal && <Modal title="Add a task or reminder" onClose={() => setShowTaskModal(false)}><label>Task name<input value={customTask.title} onChange={(event) => setCustomTask((current) => ({ ...current, title: event.target.value }))} placeholder="e.g. Check tomato leaves" /></label><label>When should it happen?<input value={customTask.detail} onChange={(event) => setCustomTask((current) => ({ ...current, detail: event.target.value }))} placeholder="Tomorrow · 8:00 AM" /></label><button className="primary-button full-width" onClick={addTask}>Save reminder <Check size={16} /></button></Modal>}
       {showExpenseModal && <Modal title="Log a farm expense" onClose={() => setShowExpenseModal(false)}><label>Expense category<input value={expenseDraft.label} onChange={(event) => setExpenseDraft((current) => ({ ...current, label: event.target.value }))} placeholder="e.g. Diesel" /></label><label>Amount in rupees<input type="number" value={expenseDraft.amount} onChange={(event) => setExpenseDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="1500" /></label><button className="primary-button full-width" onClick={addExpense}>Save expense <Check size={16} /></button></Modal>}
       {showPlotModal && <Modal title="Add a new plot" onClose={() => setShowPlotModal(false)}><label>Plot name<input value={plotName} onChange={(event) => setPlotName(event.target.value)} placeholder="e.g. Plot C" /></label><label>What are you growing?<select value={plotCrop} onChange={(event) => setPlotCrop(event.target.value)}><option value="Tomato">Tomato</option><option value="Ragi">Ragi</option><option value="Maize">Maize</option></select></label><label>Area in acres<input type="number" min="1" value={plotArea} onChange={(event) => setPlotArea(event.target.value)} /></label><button className="primary-button full-width" disabled={createPlotMutation.isPending} onClick={() => createPlotMutation.mutate({ name: plotName || "New plot", crop: plotCrop, areaAcres: Number(plotArea), soilType: "Loamy", growthStage: "Seedling" })}>{createPlotMutation.isPending ? "Saving…" : "Save plot"} <Check size={16} /></button></Modal>}
-      {showDiagnosisModal && <DiagnosisModal image={diagnosisImage} setImage={setDiagnosisImage} loading={diagnosisMutation.isPending} status={analysisStatus} selectedPlot={selectedPlot} onClose={() => setShowDiagnosisModal(false)} onSubmit={(crop, plotName, symptoms, language) => { setSelectedPlot(plotName); setShowDiagnosisModal(false); diagnosisMutation.mutate({ imageDataUrl: diagnosisImage, crop, plotName, symptoms, language }); }} />}
+      {showDiagnosisModal && <DiagnosisModal image={diagnosisImage} setImage={setDiagnosisImage} setVisualHints={setDiagnosisVisualHints} loading={diagnosisMutation.isPending} status={analysisStatus} selectedPlot={selectedPlot} onClose={() => setShowDiagnosisModal(false)} onSubmit={(crop, plotName, symptoms, language) => { setSelectedPlot(plotName); setShowDiagnosisModal(false); diagnosisMutation.mutate({ imageDataUrl: diagnosisImage, crop, plotName, symptoms, language, visualHints: diagnosisVisualHints }); }} />}
       {inboxOpen && <AgronomistInbox requests={inboxQuery.data ?? []} loading={inboxQuery.isLoading} onRead={(id) => markInboxReadMutation.mutate({ id })} onSubmit={submitInboxRequest} onClose={() => setInboxOpen(false)} />}
       {toast && <div className="toast"><CheckCircle2 size={17} /> {toast}</div>}
     </div>
@@ -601,7 +632,177 @@ export default function Home() {
 
 function SparklesIcon() { return <Sparkles size={16} />; }
 
-function FarmerAssistant({ language, setLanguage, messages, loading, escalating, onAsk, onEscalate, onTranscribeAudio, onClose }: { language: AssistantLanguage; setLanguage: (language: AssistantLanguage) => void; messages: Array<{ role: "user" | "assistant"; text: string }>; loading: boolean; escalating: boolean; onAsk: (question: string) => void; onEscalate: (question: string) => void; onTranscribeAudio: (audioDataUrl: string) => Promise<string>; onClose: () => void }) { const [question, setQuestion] = useState(""); const [recording, setRecording] = useState(false); const recognitionRef = useRef<InstanceType<NonNullable<Window["SpeechRecognition"]>> | null>(null); const recorderRef = useRef<MediaRecorder | null>(null); const chunksRef = useRef<Blob[]>([]); const languageCode: Record<AssistantLanguage, string> = { English: "en-IN", Kannada: "kn-IN", Hindi: "hi-IN", Telugu: "te-IN", Tamil: "ta-IN" }; const submit = () => { onAsk(question); setQuestion(""); }; const startRecorderFallback = async () => { if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { setQuestion("Voice input is unavailable on this browser."); return; } const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" }); chunksRef.current = []; recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); }; recorder.onstop = async () => { stream.getTracks().forEach((track) => track.stop()); const reader = new FileReader(); reader.onloadend = async () => { try { setQuestion("Transcribing voice note…"); const text = await onTranscribeAudio(String(reader.result)); setQuestion(text); } catch { setQuestion("We could not transcribe that voice note. Please try again."); } }; reader.readAsDataURL(new Blob(chunksRef.current, { type: "audio/webm" })); }; recorderRef.current = recorder; setRecording(true); recorder.start(); }; const toggleVoice = async () => { if (recording) { recognitionRef.current?.stop(); recorderRef.current?.stop(); setRecording(false); return; } const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition) { await startRecorderFallback(); return; } const recognition = new Recognition(); recognition.lang = languageCode[language]; recognition.interimResults = false; recognition.continuous = false; recognition.onresult = (event) => { const transcript = event.results[0]?.[0]?.transcript || ""; setQuestion(transcript); }; recognition.onend = () => setRecording(false); recognitionRef.current = recognition; setRecording(true); recognition.start(); }; const speak = (text: string) => { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = languageCode[language]; utterance.rate = 0.92; window.speechSynthesis.speak(utterance); }; const escalate = () => { onEscalate(question || messages.filter((message) => message.role === "user").at(-1)?.text || "Farmer needs help with a farm recommendation."); setQuestion(""); }; useEffect(() => () => { recognitionRef.current?.stop(); recorderRef.current?.stop(); window.speechSynthesis?.cancel(); }, []); return <div className="assistant-panel"><div className="notification-head"><div><span className="eyebrow">RYTHA AI</span><h3>Farm assistant</h3></div><button onClick={onClose} aria-label="Close assistant"><X size={17} /></button></div><div className="assistant-toolbar"><label>Reply language<select value={language} onChange={(event) => setLanguage(event.target.value as AssistantLanguage)}><option>English</option><option>Kannada</option><option>Hindi</option><option>Telugu</option><option>Tamil</option></select></label><button className="escalate-button" onClick={escalate} disabled={escalating}><UsersRound size={13} /> {escalating ? "Sending…" : "Ask an agronomist"}</button></div><p className="assistant-context"><Sparkles size={13} /> Ask by voice or text about irrigation and weather.</p><div className="assistant-messages">{messages.length === 0 ? <div className="assistant-empty">Try: “Should I irrigate before the rain?”</div> : messages.map((message, index) => <div className={`assistant-message ${message.role}`} key={`${message.role}-${index}`}>{message.text}{message.role === "assistant" && <button className="speak-button" onClick={() => speak(message.text)} aria-label="Read answer aloud"><Volume2 size={13} /></button>}</div>)}{loading && <div className="assistant-message assistant">Reviewing your farm context…</div>}</div><div className="assistant-input"><input value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submit(); }} placeholder={recording ? "Listening… tap mic to stop" : "Ask a farm question"} /><button className={`voice-button ${recording ? "recording" : ""}`} onClick={toggleVoice} aria-label={recording ? "Stop voice input" : "Start voice input"}><MicIcon /></button><button onClick={submit} disabled={loading || !question.trim()} aria-label="Send question"><ArrowUpRight size={16} /></button></div></div>; }
+function FarmerAssistant({ language, setLanguage, messages, loading, escalating, onAsk, onEscalate, onTranscribeAudio, onClose }: { language: AssistantLanguage; setLanguage: (language: AssistantLanguage) => void; messages: Array<{ role: "user" | "assistant"; text: string }>; loading: boolean; escalating: boolean; onAsk: (question: string) => void; onEscalate: (question: string) => void; onTranscribeAudio: (audioDataUrl: string) => Promise<string>; onClose: () => void }) {
+  const [question, setQuestion] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const lastSpokenCountRef = useRef(0);
+  const recognitionRef = useRef<InstanceType<NonNullable<Window["SpeechRecognition"]>> | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const languageCode: Record<AssistantLanguage, string> = { English: "en-IN", Kannada: "kn-IN", Hindi: "hi-IN", Telugu: "te-IN", Tamil: "ta-IN" };
+  const quickPrompts = language === "Kannada"
+    ? [
+        "ನನ್ನ ಭೂಮಿಗೆ ಯಾವ ಬೆಳೆ ಸೂಕ್ತವಾಗಿದೆ?",
+        "ನನ್ನ ಬೆಳೆಯ ಎಲೆಗಳು ಏಕೆ ಹಳದಿಯಾಗುತ್ತಿವೆ?",
+        "ನಾನು ಯಾವಾಗ ನೀರು ಹಾಕಬೇಕು?",
+        "ಇಂದಿನ ಮಾರುಕಟ್ಟೆ ದರ ಎಷ್ಟು?",
+        "ಬೇಸಾಯದ ಖರ್ಚನ್ನು ಹೇಗೆ ಕಡಿಮೆ ಮಾಡಬಹುದು?",
+      ]
+    : [
+        "Which crop is suitable for my land?",
+        "Why are my crop leaves turning yellow?",
+        "When should I irrigate?",
+        "What is the current market price?",
+        "How can I reduce cultivation expenses?",
+      ];
+
+  const submit = (overrideQuestion?: string) => {
+    const q = (overrideQuestion ?? question).trim();
+    if (!q) return;
+    onAsk(q);
+    if (!overrideQuestion) setQuestion("");
+  };
+
+  const speak = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = languageCode[language];
+    utterance.rate = 0.92;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    if (!autoSpeak) return;
+    if (messages.length > lastSpokenCountRef.current) {
+      lastSpokenCountRef.current = messages.length;
+      const latest = messages[messages.length - 1];
+      if (latest?.role === "assistant") speak(latest.text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, autoSpeak]);
+
+  const startRecorderFallback = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setQuestion("Voice input is unavailable on this browser.");
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    chunksRef.current = [];
+    recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((track) => track.stop());
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          setQuestion("Transcribing voice note…");
+          const text = await onTranscribeAudio(String(reader.result));
+          setQuestion(text);
+        } catch {
+          setQuestion("We could not transcribe that voice note. Please try again.");
+        }
+      };
+      reader.readAsDataURL(new Blob(chunksRef.current, { type: "audio/webm" }));
+    };
+    recorderRef.current = recorder;
+    setRecording(true);
+    recorder.start();
+  };
+
+  const toggleVoice = async () => {
+    if (recording) {
+      recognitionRef.current?.stop();
+      recorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      await startRecorderFallback();
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = languageCode[language];
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript || "";
+      setQuestion(transcript);
+    };
+    recognition.onend = () => setRecording(false);
+    recognitionRef.current = recognition;
+    setRecording(true);
+    recognition.start();
+  };
+
+  const escalate = () => {
+    onEscalate(question || messages.filter((message) => message.role === "user").at(-1)?.text || "Farmer needs help with a farm recommendation.");
+    setQuestion("");
+  };
+
+  useEffect(() => () => { recognitionRef.current?.stop(); recorderRef.current?.stop(); window.speechSynthesis?.cancel(); }, []);
+
+  return (
+    <div className="assistant-panel">
+      <div className="notification-head">
+        <div><span className="eyebrow">RYTHA AI · VOICE &amp; TEXT</span><h3>Farm assistant</h3></div>
+        <button onClick={onClose} aria-label="Close assistant"><X size={17} /></button>
+      </div>
+      <div className="assistant-toolbar">
+        <label>Reply language
+          <select value={language} onChange={(event) => setLanguage(event.target.value as AssistantLanguage)}>
+            <option>English</option><option>Kannada</option><option>Hindi</option><option>Telugu</option><option>Tamil</option>
+          </select>
+        </label>
+        <label className="assistant-autospeak">
+          <input type="checkbox" checked={autoSpeak} onChange={(e) => setAutoSpeak(e.target.checked)} /> Auto-speak
+        </label>
+        <button className="escalate-button" onClick={escalate} disabled={escalating}><UsersRound size={13} /> {escalating ? "Sending…" : "Ask agronomist"}</button>
+      </div>
+      <p className="assistant-context"><Sparkles size={13} /> Tap mic to speak or pick a quick question in {language}.</p>
+      <div className="assistant-quick-prompts">
+        {quickPrompts.map((prompt) => (
+          <button key={prompt} type="button" onClick={() => submit(prompt)} disabled={loading}>
+            {prompt}
+          </button>
+        ))}
+      </div>
+      <div className="assistant-messages">
+        {messages.length === 0 ? (
+          <div className="assistant-empty">{language === "Kannada" ? "ಕನ್ನಡದಲ್ಲಿ ಅಥವಾ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಕೇಳಿ!" : "Try: “When should I irrigate?”"}</div>
+        ) : (
+          messages.map((message, index) => (
+            <div className={`assistant-message ${message.role}`} key={`${message.role}-${index}`}>
+              {message.text}
+              {message.role === "assistant" && (
+                <button className="speak-button" onClick={() => speak(message.text)} aria-label="Read answer aloud">
+                  <Volume2 size={13} />
+                </button>
+              )}
+            </div>
+          ))
+        )}
+        {loading && <div className="assistant-message assistant">Reviewing your farm context…</div>}
+      </div>
+      <div className="assistant-input">
+        <input
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter") submit(); }}
+          placeholder={recording ? "Listening… tap mic to stop" : "Ask in Kannada or English"}
+        />
+        <button className={`voice-button ${recording ? "recording" : ""}`} onClick={toggleVoice} aria-label={recording ? "Stop voice input" : "Start voice input"}>
+          <MicIcon />
+        </button>
+        <button onClick={() => submit()} disabled={loading || !question.trim()} aria-label="Send question">
+          <ArrowUpRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function MicIcon() { return <span className="mic-icon">●</span>; }
 
@@ -635,7 +836,7 @@ function DiagnosisHistory({ items, loading }: { items: Array<{ id: number; crop:
   return <div className="history-list">{items.map((item) => { const needsReview = item.needsAgronomist === 1; return <div className="history-item" key={item.id}><div className={`history-marker ${needsReview ? "review" : item.severity === "high" ? "high" : "healthy"}`}><ScanLine size={14} /></div><div className="history-main"><div className="history-meta"><span>{new Date(item.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span><span>·</span><span>{item.crop}</span><span className={`history-status ${needsReview ? "review" : item.severity === "high" ? "risk" : "ok"}`}>{needsReview ? "Needs review" : item.severity === "high" ? "High attention" : "Monitor"}</span></div><strong>{item.likelyCondition}</strong><p>{Math.round(item.confidence)}% confidence · {item.severity} severity</p></div><ChevronRight size={16} className="history-chevron" /></div>; })}</div>;
 }
 
-function DiagnosisModal({ image, setImage, loading, status, selectedPlot, onClose, onSubmit }: { image: string; setImage: (value: string) => void; loading: boolean; status: string; selectedPlot: string; onClose: () => void; onSubmit: (crop: string, plotName: string, symptoms: string, language: "English" | "Kannada" | "Hindi" | "Telugu" | "Tamil") => void }) {
+function DiagnosisModal({ image, setImage, setVisualHints, loading, status, selectedPlot, onClose, onSubmit }: { image: string; setImage: (value: string) => void; setVisualHints?: (hints: { greenPct: number; yellowPct: number; brownSpotPct: number }) => void; loading: boolean; status: string; selectedPlot: string; onClose: () => void; onSubmit: (crop: string, plotName: string, symptoms: string, language: "English" | "Kannada" | "Hindi" | "Telugu" | "Tamil") => void }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [crop, setCrop] = useState("Tomato");
   const [plotName, setPlotName] = useState(selectedPlot);
@@ -674,6 +875,31 @@ function DiagnosisModal({ image, setImage, loading, status, selectedPlot, onClos
           const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.75);
           setImage(compressedDataUrl);
           setFileName(`${file.name.replace(/\.[^/.]+$/, "")}-optimized.jpg`);
+
+          // Sample compressed 64x64 patch to compute visual chlorophyll/chlorosis/spot hints
+          try {
+            const sample = document.createElement("canvas");
+            sample.width = 64;
+            sample.height = 64;
+            const sctx = sample.getContext("2d");
+            if (sctx && setVisualHints) {
+              sctx.drawImage(img, 0, 0, 64, 64);
+              const px = sctx.getImageData(0, 0, 64, 64).data;
+              let green = 0, yellow = 0, brown = 0;
+              const total = 64 * 64;
+              for (let i = 0; i < px.length; i += 4) {
+                const r = px[i]!, g = px[i + 1]!, b = px[i + 2]!;
+                if (g > r + 12 && g > b + 12) green++;
+                else if (r > 140 && g > 130 && b < 95) yellow++;
+                else if (r > 65 && r < 145 && g < 105 && b < 85 && r > g) brown++;
+              }
+              setVisualHints({
+                greenPct: Math.round((green / total) * 100),
+                yellowPct: Math.round((yellow / total) * 100),
+                brownSpotPct: Math.round((brown / total) * 100),
+              });
+            }
+          } catch {}
         } else {
           setImage(String(reader.result));
           setFileName(file.name);
