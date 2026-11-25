@@ -268,7 +268,6 @@ export default function LocalIntelligenceWorkspace({ lat, lng, onToast }: Props)
                 <div className="intel-actions">
                   <button
                     className="tiny-button"
-                    style={{ width: "auto", padding: "0 9px" }}
                     disabled={corroborateMutation.isPending}
                     onClick={() => corroborateMutation.mutate({ reportId: rep.id })}
                   >
@@ -276,8 +275,7 @@ export default function LocalIntelligenceWorkspace({ lat, lng, onToast }: Props)
                   </button>
                   {isAdmin && (
                     <button
-                      className="secondary-button"
-                      style={{ padding: "5px 9px", fontSize: 10 }}
+                      className="tiny-button"
                       onClick={() => verifyMutation.mutate({ reportId: rep.id, verified: !rep.verified })}
                     >
                       {rep.verified ? "Unverify" : "Verify report"}

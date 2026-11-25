@@ -132,7 +132,7 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <div className="fm-form-actions" style={{ marginTop: 12 }}>
                 <button
                   className="secondary-button"
                   style={{ flex: 1 }}
