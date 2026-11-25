@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { AlertTriangle, CheckCircle2, MapPin, PlusCircle, Radio, ShieldCheck, ThumbsUp, X } from "lucide-react";
@@ -22,6 +23,7 @@ const INTEL_CATEGORIES = [
 ] as const;
 
 export default function LocalIntelligenceWorkspace({ lat, lng, onToast }: Props) {
+  const { t } = useTranslation(["farm", "common"]);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [verificationFilter, setVerificationFilter] = useState<"all" | "verified" | "unverified">("all");

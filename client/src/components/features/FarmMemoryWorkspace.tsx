@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import {
   BookOpen, Plus, Search, Edit3, Trash2, ChevronDown, ChevronUp,
   Wheat, CalendarDays, IndianRupee, Check, X, RefreshCw
 } from "lucide-react";
+import { formatCurrency, formatDate } from "@/i18n";
 
 type MemoryRecord = {
   id: number;
@@ -21,6 +23,7 @@ type MemoryRecord = {
 type Props = { onToast: (msg: string) => void };
 
 export default function FarmMemoryWorkspace({ onToast }: Props) {
+  const { t, i18n } = useTranslation(["farm", "common"]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -42,7 +45,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
   const createMut = trpc.farmMemory.create.useMutation({
     onSuccess: () => {
       void utils.farmMemory.list.invalidate();
-      onToast("Farm memory record saved.");
+      onToast(t("farm:farmMemory.saveRecord"));
       setShowForm(false);
       resetForm();
     },
@@ -52,7 +55,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
   const updateMut = trpc.farmMemory.update.useMutation({
     onSuccess: () => {
       void utils.farmMemory.list.invalidate();
-      onToast("Record updated.");
+      onToast(t("farm:farmMemory.updateRecord"));
       setEditId(null);
       resetForm();
     },
@@ -62,7 +65,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
   const deleteMut = trpc.farmMemory.delete.useMutation({
     onSuccess: () => {
       void utils.farmMemory.list.invalidate();
-      onToast("Record deleted.");
+      onToast(t("common:delete"));
     },
     onError: (e) => onToast(e.message),
   });
@@ -120,7 +123,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
       ? new Date(r.sowingDate).getFullYear().toString()
       : r.harvestDate
       ? new Date(r.harvestDate).getFullYear().toString()
-      : "Unknown season";
+      : "2026";
     if (!grouped[year]) grouped[year] = [];
     grouped[year].push(r);
   }
@@ -132,7 +135,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
         <div className="search-box">
           <Search size={16} />
           <input
-            placeholder="Search by crop, plot or notes…"
+            placeholder={t("farm:farmMemory.searchPlaceholder")}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -141,7 +144,7 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
           className="primary-button"
           onClick={() => { resetForm(); setEditId(null); setShowForm(!showForm); }}
         >
-          <Plus size={15} /> Add record
+          <Plus size={15} /> {t("farm:farmMemory.addRecord")}
         </button>
       </div>
 
@@ -149,41 +152,41 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
         <div className="panel fm-form">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">{editId ? "EDIT RECORD" : "NEW RECORD"}</span>
-              <h3>Farm Memory Entry</h3>
+              <span className="eyebrow">{editId ? t("farm:farmMemory.editRecord") : t("farm:farmMemory.newRecord")}</span>
+              <h3>{t("farm:farmMemory.entryTitle")}</h3>
             </div>
-            <button className="icon-button" onClick={() => { setShowForm(false); setEditId(null); resetForm(); }}><X size={17} /></button>
+            <button className="icon-button" onClick={() => { setShowForm(false); setEditId(null); resetForm(); }} aria-label={t("common:close")}><X size={17} /></button>
           </div>
           <div className="fm-form-grid">
-            <label>Record type
+            <label>{t("farm:farmMemory.recordType")}
               <select value={form.recordType} onChange={e => setForm(f => ({ ...f, recordType: e.target.value }))}>
-                <option value="harvest">Harvest</option>
-                <option value="expense">Expense</option>
-                <option value="observation">Field Observation</option>
-                <option value="treatment">Treatment</option>
-                <option value="sale">Sale</option>
+                <option value="harvest">{t("farm:farmMemory.types.harvest")}</option>
+                <option value="expense">{t("farm:farmMemory.types.expense")}</option>
+                <option value="observation">{t("farm:farmMemory.types.observation")}</option>
+                <option value="treatment">{t("farm:farmMemory.types.treatment")}</option>
+                <option value="sale">{t("farm:farmMemory.types.sale")}</option>
               </select>
             </label>
-            <label>Crop
+            <label>{t("common:crop")}
               <input value={form.crop} onChange={e => setForm(f => ({ ...f, crop: e.target.value }))} placeholder="e.g. Tomato" />
             </label>
-            <label>Plot name
-              <input value={form.plotName} onChange={e => setForm(f => ({ ...f, plotName: e.target.value }))} placeholder="e.g. Plot A" />
+            <label>{t("farm:farmMemory.plotName")}
+              <input value={form.plotName} onChange={e => setForm(f => ({ ...f, plotName: e.target.value }))} placeholder={t("farm:farmMemory.plotPlaceholder")} />
             </label>
-            <label>Sowing date
+            <label>{t("farm:farmMemory.sowingDate")}
               <input type="date" value={form.sowingDate} onChange={e => setForm(f => ({ ...f, sowingDate: e.target.value }))} />
             </label>
-            <label>Harvest date
+            <label>{t("farm:farmMemory.harvestDate")}
               <input type="date" value={form.harvestDate} onChange={e => setForm(f => ({ ...f, harvestDate: e.target.value }))} />
             </label>
-            <label>Quantity (quintals)
-              <input type="number" min="0" value={form.quantityQ} onChange={e => setForm(f => ({ ...f, quantityQ: e.target.value }))} placeholder="e.g. 12" />
+            <label>{t("farm:farmMemory.quantityQ")}
+              <input type="number" min="0" value={form.quantityQ} onChange={e => setForm(f => ({ ...f, quantityQ: e.target.value }))} placeholder="12" />
             </label>
-            <label>Price per quintal (₹)
-              <input type="number" min="0" value={form.pricePerQ} onChange={e => setForm(f => ({ ...f, pricePerQ: e.target.value }))} placeholder="e.g. 2800" />
+            <label>{t("farm:farmMemory.pricePerQ")}
+              <input type="number" min="0" value={form.pricePerQ} onChange={e => setForm(f => ({ ...f, pricePerQ: e.target.value }))} placeholder="2800" />
             </label>
-            <label className="fm-notes">Notes
-              <textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Observations, lessons, weather conditions…" />
+            <label className="fm-notes">{t("common:notes")}
+              <textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={t("farm:farmMemory.notesPlaceholder")} />
             </label>
           </div>
           <div className="fm-form-actions">
@@ -192,48 +195,48 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
               disabled={createMut.isPending || updateMut.isPending || !form.crop.trim()}
               onClick={submitForm}
             >
-              <Check size={15} /> {editId ? "Update record" : "Save record"}
+              <Check size={15} /> {editId ? t("farm:farmMemory.updateRecord") : t("farm:farmMemory.saveRecord")}
             </button>
-            <button className="secondary-button" onClick={() => { setShowForm(false); setEditId(null); resetForm(); }}>Cancel</button>
+            <button className="secondary-button" onClick={() => { setShowForm(false); setEditId(null); resetForm(); }}>{t("common:cancel")}</button>
           </div>
         </div>
       )}
 
       {listQuery.isLoading ? (
-        <div className="feature-empty"><RefreshCw size={20} className="spin" /><span>Loading farm memory…</span></div>
+        <div className="feature-empty"><RefreshCw size={20} className="spin" /><span>{t("farm:farmMemory.loading")}</span></div>
       ) : records.length === 0 ? (
         <div className="feature-empty">
           <BookOpen size={28} />
-          <strong>No farm records yet</strong>
-          <span>Add harvest data, treatment logs, and field observations to build your farm's memory.</span>
+          <strong>{t("farm:farmMemory.emptyTitle")}</strong>
+          <span>{t("farm:farmMemory.emptyDesc")}</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="feature-empty"><Search size={20} /><span>No records matching "{search}"</span></div>
+        <div className="feature-empty"><Search size={20} /><span>{t("farm:farmMemory.noMatch", { query: search })}</span></div>
       ) : (
         <div className="fm-timeline">
           {seasons.map(season => (
             <div key={season} className="fm-season">
               <div className="fm-season-header">
-                <span className="eyebrow">SEASON {season}</span>
-                <span className="fm-season-count">{grouped[season].length} records</span>
+                <span className="eyebrow">{t("farm:farmMemory.season", { year: season })}</span>
+                <span className="fm-season-count">{t("farm:farmMemory.recordCount", { count: grouped[season].length })}</span>
               </div>
               {grouped[season].map(r => {
                 const isExpanded = expandedId === r.id;
                 const revenue = r.quantityQ != null && r.pricePerQ != null
-                  ? (r.quantityQ * r.pricePerQ).toLocaleString("en-IN")
+                  ? formatCurrency(r.quantityQ * r.pricePerQ, i18n.language)
                   : null;
                 return (
                   <div key={r.id} className={`fm-card ${r.recordType}`}>
                     <div className="fm-card-top" onClick={() => setExpandedId(isExpanded ? null : r.id)}>
                       <div className="fm-card-left">
-                        <span className={`fm-type-badge ${r.recordType}`}>{r.recordType}</span>
+                        <span className={`fm-type-badge ${r.recordType}`}>{t(`farm:farmMemory.types.${r.recordType}`, { defaultValue: r.recordType })}</span>
                         <div>
                           <strong>{r.crop}</strong>
                           <small>{r.plotName}</small>
                         </div>
                       </div>
                       <div className="fm-card-right">
-                        {revenue && <span className="fm-revenue"><IndianRupee size={12} />₹{revenue}</span>}
+                        {revenue && <span className="fm-revenue"><IndianRupee size={12} />{revenue}</span>}
                         {r.quantityQ != null && <span className="fm-qty"><Wheat size={12} />{r.quantityQ} q</span>}
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </div>
@@ -241,18 +244,18 @@ export default function FarmMemoryWorkspace({ onToast }: Props) {
                     {isExpanded && (
                       <div className="fm-card-detail">
                         <div className="fm-dates">
-                          {r.sowingDate && <span><CalendarDays size={13} /> Sown: {new Date(r.sowingDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>}
-                          {r.harvestDate && <span><CalendarDays size={13} /> Harvested: {new Date(r.harvestDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+                          {r.sowingDate && <span><CalendarDays size={13} /> {t("farm:farmMemory.sown")}: {formatDate(r.sowingDate, i18n.language)}</span>}
+                          {r.harvestDate && <span><CalendarDays size={13} /> {t("farm:farmMemory.harvested")}: {formatDate(r.harvestDate, i18n.language)}</span>}
                         </div>
                         {r.notes && <p className="fm-notes-text">{r.notes}</p>}
                         <div className="fm-card-actions">
-                          <button className="secondary-button" onClick={() => startEdit(r)}><Edit3 size={13} /> Edit</button>
+                          <button className="secondary-button" onClick={() => startEdit(r)}><Edit3 size={13} /> {t("common:edit")}</button>
                           <button
                             className="danger-button"
                             disabled={deleteMut.isPending}
-                            onClick={() => { if (confirm("Delete this record?")) deleteMut.mutate({ id: r.id }); }}
+                            onClick={() => { if (confirm(t("farm:farmMemory.confirmDelete"))) deleteMut.mutate({ id: r.id }); }}
                           >
-                            <Trash2 size={13} /> Delete
+                            <Trash2 size={13} /> {t("common:delete")}
                           </button>
                         </div>
                       </div>

@@ -1,10 +1,13 @@
 import { FormEvent, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Sprout, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function Auth() {
+  const { t } = useTranslation(["authentication", "navigation"]);
   const [, setLocation] = useLocation();
   const params = new URLSearchParams(window.location.search);
   const mode = params.get("mode") || "signin";
@@ -34,15 +37,15 @@ export default function Auth() {
     setNotice("");
 
     if (!identifier.trim()) {
-      setError("Please enter your email or username.");
+      setError(t("authentication:errors.missingIdentifier"));
       return;
     }
     if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
+      setError(t("authentication:errors.shortPassword"));
       return;
     }
     if (authMode === "register" && !name.trim()) {
-      setError("Please enter your name.");
+      setError(t("authentication:errors.missingName"));
       return;
     }
 
@@ -54,7 +57,7 @@ export default function Auth() {
       });
       window.location.href = "/app?welcome=1";
     } catch (err: any) {
-      setError(err?.message || "Sign-in failed. Please try again.");
+      setError(err?.message || t("authentication:errors.signInFailed"));
     }
   };
 
@@ -64,7 +67,7 @@ export default function Auth() {
       await demoLoginMutation.mutateAsync();
       window.location.href = "/app?welcome=1";
     } catch (err: any) {
-      setError(err?.message || "Demo access failed.");
+      setError(err?.message || t("authentication:errors.demoFailed"));
     }
   };
 
@@ -73,9 +76,12 @@ export default function Auth() {
       <div className="auth-shell">
         <div className="auth-topline">
           <Link href="/" className="auth-back">
-            <ArrowLeft size={16} /> Back to Namma Rytha
+            <ArrowLeft size={16} /> {t("authentication:backHome")}
           </Link>
-          <ThemeToggle compact />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LanguageSwitcher compact />
+            <ThemeToggle compact />
+          </div>
         </div>
 
         <div className="auth-brand">
@@ -83,37 +89,37 @@ export default function Auth() {
             <Sprout size={20} />
           </span>
           <span>
-            <strong>Namma Rytha</strong>
-            <small>ನಮ್ಮ ರೈತ · Smart farming</small>
+            <strong>{t("navigation:brandName")}</strong>
+            <small>{t("navigation:brandSub")}</small>
           </span>
         </div>
 
         <section className="auth-card">
           <div className="auth-heading">
             <span className="auth-kicker">
-              {authMode === "register" ? "NEW FARMER" : "FARMER ACCESS"}
+              {authMode === "register" ? t("authentication:newFarmer") : t("authentication:farmerAccess")}
             </span>
             <h1>
               {authMode === "register"
-                ? "Create your farm account"
-                : "Welcome back to your farm"}
+                ? t("authentication:createTitle")
+                : t("authentication:welcomeTitle")}
             </h1>
             <p>
               {authMode === "register"
-                ? "Sign up with your username and password to get started."
-                : "Sign in with your username or email and password."}
+                ? t("authentication:createSubtitle")
+                : t("authentication:signinSubtitle")}
             </p>
           </div>
 
           <form className="auth-form" onSubmit={handleStandardAuth} noValidate>
             {authMode === "register" && (
               <>
-                <label htmlFor="auth-name">Your Full Name</label>
+                <label htmlFor="auth-name">{t("authentication:fullName")}</label>
                 <input
                   id="auth-name"
                   name="name"
                   type="text"
-                  placeholder="e.g. Ramesh Kumar"
+                  placeholder={t("authentication:fullNamePlaceholder")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -121,25 +127,25 @@ export default function Auth() {
               </>
             )}
 
-            <label htmlFor="auth-identifier">Email or Username</label>
+            <label htmlFor="auth-identifier">{t("authentication:usernameOrEmail")}</label>
             <input
               id="auth-identifier"
               name="identifier"
               type="text"
               autoComplete="username"
-              placeholder="e.g. farmer@gmail.com or ramesh"
+              placeholder={t("authentication:usernamePlaceholder")}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
             />
 
-            <label htmlFor="auth-password">Password</label>
+            <label htmlFor="auth-password">{t("authentication:password")}</label>
             <input
               id="auth-password"
               name="password"
               type="password"
               autoComplete={authMode === "register" ? "new-password" : "current-password"}
-              placeholder="••••••••"
+              placeholder={t("authentication:passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -150,7 +156,7 @@ export default function Auth() {
               type="submit"
               disabled={loginMutation.isPending || demoLoginMutation.isPending}
             >
-              <span>{loginMutation.isPending ? "Signing in…" : authMode === "register" ? "Create Account" : "Sign In"}</span>
+              <span>{authMode === "register" ? t("authentication:createAccountBtn") : t("authentication:signInBtn")}</span>
               <ArrowRight size={17} />
             </button>
           </form>
@@ -169,7 +175,7 @@ export default function Auth() {
                 color: "#6b7280",
               }}
             >
-              or
+              {t("authentication:orTryDemo")}
             </span>
           </div>
 
@@ -194,7 +200,7 @@ export default function Auth() {
             }}
           >
             <Sparkles size={16} />
-            <span>{demoLoginMutation.isPending ? "Entering..." : "Continue as Demo Farmer (Instant Access)"}</span>
+            <span>{t("authentication:demoBtn")}</span>
           </button>
 
           {error && (
@@ -210,22 +216,21 @@ export default function Auth() {
 
           <p className="auth-switch" style={{ marginTop: "16px" }}>
             {authMode === "register"
-              ? "Already have an account?"
-              : "New to Namma Rytha?"}{" "}
+              ? t("authentication:alreadyHaveAccount")
+              : t("authentication:newToRytha")}{" "}
             <button
               type="button"
               onClick={() =>
                 switchMode(authMode === "register" ? "signin" : "register")
               }
             >
-              {authMode === "register" ? "Sign in" : "Create a free account"}
+              {authMode === "register" ? t("authentication:signInLink") : t("authentication:registerLink")}
             </button>
           </p>
         </section>
 
         <div className="auth-trust">
-          <ShieldCheck size={16} /> Your session is encrypted with standard session cookies ·{" "}
-          <Link href="/">Privacy-first farm tools</Link>
+          <ShieldCheck size={16} /> {t("authentication:dataProtected")}
         </div>
       </div>
     </main>

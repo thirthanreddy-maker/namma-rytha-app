@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import {
   RefreshCw, Leaf, ChevronDown, ChevronUp, Droplets, IndianRupee,
   CircleAlert, CheckCircle2, Sparkles
 } from "lucide-react";
+import { formatCurrency } from "@/i18n";
 
 type RotationResult = {
   recommendations: Array<{
@@ -28,6 +30,7 @@ const IRRIGATION_LEVELS = ["Rainfed", "Assured irrigation", "Drip/Sprinkler", "F
 const DISTRICTS = ["Kolar", "Chikkaballapur", "Bangalore Rural", "Tumkur", "Mysuru", "Mandya", "Hassan", "Davangere", "Belagavi", "Dharwad"];
 
 export default function CropRotationWorkspace({ onToast }: Props) {
+  const { t, i18n } = useTranslation(["crop", "common"]);
   const [form, setForm] = useState({
     previousCrop: "Tomato",
     soilType: "Red loam",
@@ -63,46 +66,46 @@ export default function CropRotationWorkspace({ onToast }: Props) {
       <div className="panel cr-form-panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">ROTATION INPUTS</span>
-            <h3>Previous season details</h3>
+            <span className="eyebrow">{t("crop:cropRotation.eyebrow")}</span>
+            <h3>{t("crop:cropRotation.title")}</h3>
           </div>
           <Leaf size={22} className="muted-icon" />
         </div>
         <div className="cr-form-grid">
-          <label>Previous crop
+          <label>{t("crop:cropRotation.previousCrop")}
             <input
               value={form.previousCrop}
               onChange={e => setForm(f => ({ ...f, previousCrop: e.target.value }))}
               placeholder="e.g. Tomato"
             />
           </label>
-          <label>Soil type
+          <label>{t("crop:cropRotation.soilType")}
             <select value={form.soilType} onChange={e => setForm(f => ({ ...f, soilType: e.target.value }))}>
               {SOIL_TYPES.map(s => <option key={s}>{s}</option>)}
             </select>
           </label>
-          <label>Soil pH
+          <label>{t("crop:cropRotation.soilPh")}
             <input
               type="number" min="4" max="9" step="0.1"
               value={form.soilPh}
               onChange={e => setForm(f => ({ ...f, soilPh: e.target.value }))}
             />
           </label>
-          <label>Irrigation level
+          <label>{t("crop:cropRotation.irrigationLevel")}
             <select value={form.irrigationLevel} onChange={e => setForm(f => ({ ...f, irrigationLevel: e.target.value }))}>
               {IRRIGATION_LEVELS.map(i => <option key={i}>{i}</option>)}
             </select>
           </label>
-          <label>District
+          <label>{t("crop:cropRotation.district")}
             <select value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))}>
               {DISTRICTS.map(d => <option key={d}>{d}</option>)}
             </select>
           </label>
-          <label className="cr-disease">Disease history (optional)
+          <label className="cr-disease">{t("crop:cropRotation.diseaseHistory")}
             <input
               value={form.diseaseHistory}
               onChange={e => setForm(f => ({ ...f, diseaseHistory: e.target.value }))}
-              placeholder="e.g. Early blight last season"
+              placeholder={t("crop:cropRotation.diseasePlaceholder")}
             />
           </label>
         </div>
@@ -112,8 +115,8 @@ export default function CropRotationWorkspace({ onToast }: Props) {
           onClick={submit}
         >
           {recommendMut.isPending
-            ? <><RefreshCw size={15} className="spin" /> Analyzing rotation…</>
-            : <><Sparkles size={15} /> Get crop rotation recommendations</>
+            ? <><RefreshCw size={15} className="spin" /> {t("crop:cropRotation.analyzingBtn")}</>
+            : <><Sparkles size={15} /> {t("crop:cropRotation.analyzeBtn")}</>
           }
         </button>
       </div>
@@ -144,15 +147,15 @@ export default function CropRotationWorkspace({ onToast }: Props) {
                   <div className="cr-card-header" onClick={() => setExpandedRank(isOpen ? null : rec.rank)}>
                     <div className="cr-rank-badge">#{rec.rank}</div>
                     <div className="cr-card-title">
-                      <strong>{rec.crop}</strong>
+                      <strong>{t(`common:crops.${rec.crop}`, { defaultValue: rec.crop })}</strong>
                       <div className="cr-score-bar">
                         <div className="cr-score-fill" style={{ width: `${rec.suitabilityScore}%` }} />
                       </div>
-                      <small>Suitability: {rec.suitabilityScore}/100</small>
+                      <small>{t("crop:cropRotation.suitability", { score: rec.suitabilityScore })}</small>
                     </div>
                     <div className="cr-card-meta">
                       <span><Droplets size={12} />{rec.waterRequirement}</span>
-                      <span><IndianRupee size={12} />₹{rec.estimatedCostPerAcre.toLocaleString("en-IN")}/acre</span>
+                      <span><IndianRupee size={12} />{formatCurrency(rec.estimatedCostPerAcre, i18n.language)}/{t("common:acres")}</span>
                     </div>
                     {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
@@ -161,19 +164,19 @@ export default function CropRotationWorkspace({ onToast }: Props) {
                       <p className="cr-reasoning">{rec.reasoning}</p>
                       <div className="cr-benefits">
                         <div>
-                          <span className="eyebrow">DISEASE BREAK</span>
+                          <span className="eyebrow">{t("crop:cropRotation.diseaseBreak")}</span>
                           <p><CheckCircle2 size={13} className="positive-icon" />{rec.diseaseBreak}</p>
                         </div>
                         <div>
-                          <span className="eyebrow">NUTRIENT BENEFIT</span>
+                          <span className="eyebrow">{t("crop:cropRotation.nutrientBenefit")}</span>
                           <p><CheckCircle2 size={13} className="positive-icon" />{rec.nutrientBenefit}</p>
                         </div>
                       </div>
                       <div className="cr-estimate">
-                        <span>Estimated yield: <strong>{rec.estimatedYieldQ} q/acre</strong></span>
-                        <span>Est. revenue: <strong>₹{(rec.estimatedYieldQ * 2200).toLocaleString("en-IN")}</strong> <small>(at benchmark price)</small></span>
+                        <span>{t("crop:cropRotation.estYield", { yield: rec.estimatedYieldQ })}</span>
+                        <span>{t("crop:cropRotation.estRevenue", { amount: formatCurrency(rec.estimatedYieldQ * 2200, i18n.language) })}</span>
                       </div>
-                      <small className="data-source-note">Estimates based on CROP_CATALOG agronomic data. Actual results depend on field conditions.</small>
+                      <small className="data-source-note">{t("crop:cropRotation.catalogDisclaimer")}</small>
                     </div>
                   )}
                 </div>
@@ -186,8 +189,8 @@ export default function CropRotationWorkspace({ onToast }: Props) {
       {!result && !recommendMut.isPending && (
         <div className="feature-empty">
           <Leaf size={28} />
-          <strong>Intelligent crop rotation recommendations</strong>
-          <span>Fill in your previous season details above to get ranked crop suggestions that break disease cycles and improve soil health.</span>
+          <strong>{t("crop:cropRotation.emptyTitle")}</strong>
+          <span>{t("crop:cropRotation.emptyDesc")}</span>
         </div>
       )}
     </div>

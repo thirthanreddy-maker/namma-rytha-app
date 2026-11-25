@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { ArrowRightLeft, BadgeIndianRupee, CheckCircle2, Scale, Truck, XCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ArrowRightLeft, BadgeIndianRupee, CheckCircle2, Scale, Truck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, formatDate } from "@/i18n";
 
 type Props = {
   trackedExpensesTotal: number;
@@ -8,6 +10,7 @@ type Props = {
 };
 
 export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToast }: Props) {
+  const { t, i18n } = useTranslation(["market", "common"]);
   const [crop, setCrop] = useState("Tomato");
   const [quantityQ, setQuantityQ] = useState(45);
   const [buyerOffer, setBuyerOffer] = useState(2350);
@@ -42,39 +45,39 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">AI MANDI NEGOTIATION ASSISTANT</span>
-              <h3>Evaluate a buyer&apos;s offer</h3>
-              <p>Compare farm-gate buyer offers against nearby mandis after transport & mandi fees.</p>
+              <span className="eyebrow">{t("market:mandi.eyebrow")}</span>
+              <h3>{t("market:mandi.title")}</h3>
+              <p>{t("market:mandi.subtitle")}</p>
             </div>
             <Scale size={20} className="muted-icon" />
           </div>
 
           <div className="mandi-form-grid">
             <label>
-              Commodity
+              {t("market:mandi.commodity")}
               <select value={crop} onChange={(e) => setCrop(e.target.value)}>
-                <option>Tomato</option>
-                <option>Ragi</option>
-                <option>Maize</option>
-                <option>Chilli</option>
-                <option>Onion</option>
-                <option>Groundnut</option>
+                <option value="Tomato">{t("common:crops.Tomato")}</option>
+                <option value="Ragi">{t("common:crops.Ragi")}</option>
+                <option value="Maize">{t("common:crops.Maize")}</option>
+                <option value="Chilli">{t("common:crops.Chilli")}</option>
+                <option value="Onion">{t("common:crops.Onion")}</option>
+                <option value="Groundnut">{t("common:crops.Groundnut")}</option>
               </select>
             </label>
             <label>
-              Harvest quantity (quintals)
+              {t("market:mandi.harvestQty")}
               <input type="number" min={1} value={quantityQ} onChange={(e) => setQuantityQ(Number(e.target.value))} />
             </label>
             <label>
-              Buyer&apos;s offered price (₹/quintal)
+              {t("market:mandi.buyerOffer")}
               <input type="number" min={100} step={50} value={buyerOffer} onChange={(e) => setBuyerOffer(Number(e.target.value))} />
             </label>
             <label>
-              Season production cost (₹ total)
+              {t("market:mandi.prodCost")}
               <input type="number" min={0} step={500} value={productionCost} onChange={(e) => setProductionCost(Number(e.target.value))} />
             </label>
             <label>
-              Transport rate (₹ / km / quintal)
+              {t("market:mandi.transportRate")}
               <input type="number" min={1} step={0.5} value={transportRate} onChange={(e) => setTransportRate(Number(e.target.value))} />
             </label>
           </div>
@@ -85,13 +88,13 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
             <>
               <div className="panel-title">
                 <div>
-                  <span className="eyebrow">NEGOTIATION VERDICT</span>
+                  <span className="eyebrow">{t("market:mandi.verdictEyebrow")}</span>
                   <h3>
                     {data.verdict === "ACCEPT"
-                      ? "Accept buyer offer"
+                      ? t("market:mandi.acceptTitle")
                       : data.verdict === "COUNTER"
-                        ? `Counter-offer ₹${data.suggestedCounterPrice.toLocaleString("en-IN")}/q`
-                        : `Take harvest to ${data.bestMandi.mandi}`}
+                        ? t("market:mandi.counterTitle", { price: formatCurrency(data.suggestedCounterPrice, i18n.language) })
+                        : t("market:mandi.mandiTitle", { mandi: data.bestMandi.mandi })}
                   </h3>
                 </div>
                 <span className={`status-pill ${data.verdict === "ACCEPT" ? "green" : data.verdict === "COUNTER" ? "amber" : "blue"}`}>
@@ -104,28 +107,28 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
 
               <div className="sim-kpi-grid">
                 <div className="sim-kpi">
-                  <small>BREAK-EVEN PRICE</small>
-                  <strong>₹{data.breakEvenPerQuintal.toLocaleString("en-IN")}/q</strong>
+                  <small>{t("market:mandi.breakEven")}</small>
+                  <strong>{formatCurrency(data.breakEvenPerQuintal, i18n.language)}/q</strong>
                   <span className={buyerOffer >= data.breakEvenPerQuintal ? "positive" : "negative"}>
-                    {buyerOffer >= data.breakEvenPerQuintal ? "Above break-even" : "Loss at offered price"}
+                    {buyerOffer >= data.breakEvenPerQuintal ? t("market:mandi.aboveBreakEven") : t("market:mandi.lossAtOffer")}
                   </span>
                 </div>
                 <div className="sim-kpi">
-                  <small>BUYER NET PROFIT</small>
-                  <strong>₹{data.buyerNetProfit.toLocaleString("en-IN")}</strong>
-                  <span>Gross ₹{data.buyerGrossRevenue.toLocaleString("en-IN")}</span>
+                  <small>{t("market:mandi.buyerNetProfit")}</small>
+                  <strong>{formatCurrency(data.buyerNetProfit, i18n.language)}</strong>
+                  <span>{t("market:mandi.gross", { amount: formatCurrency(data.buyerGrossRevenue, i18n.language) })}</span>
                 </div>
                 <div className="sim-kpi">
-                  <small>BEST MANDI NET PROFIT</small>
-                  <strong>₹{data.bestMandi.netProfit.toLocaleString("en-IN")}</strong>
+                  <small>{t("market:mandi.bestMandiProfit")}</small>
+                  <strong>{formatCurrency(data.bestMandi.netProfit, i18n.language)}</strong>
                   <span>{data.bestMandi.mandi}</span>
                 </div>
                 <div className="sim-kpi">
-                  <small>OFFER VS BEST MANDI</small>
+                  <small>{t("market:mandi.offerVsBest")}</small>
                   <strong className={data.diffVsBestMandi >= 0 ? "positive" : "negative"}>
-                    {data.diffVsBestMandi >= 0 ? "+" : ""}₹{data.diffVsBestMandi.toLocaleString("en-IN")}
+                    {data.diffVsBestMandi >= 0 ? "+" : ""}{formatCurrency(data.diffVsBestMandi, i18n.language)}
                   </strong>
-                  <span>{data.diffPctVsBestMandi}% net difference</span>
+                  <span>{t("market:mandi.netDiff", { pct: data.diffPctVsBestMandi })}</span>
                 </div>
               </div>
 
@@ -136,10 +139,10 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
                   onClick={() => {
                     const summary = `Rytha Offer Check (${data.crop}, ${data.quantityQuintals}q): Offered ₹${data.buyerOfferPerQuintal}/q, Break-even ₹${data.breakEvenPerQuintal}/q. Verdict: ${data.verdict} (Best mandi ${data.bestMandi.mandi} net ₹${data.bestMandi.netRealization.toLocaleString("en-IN")}).`;
                     void navigator.clipboard?.writeText(summary);
-                    onToast("Negotiation summary copied for sharing.");
+                    onToast(t("market:mandi.copySummary"));
                   }}
                 >
-                  <BadgeIndianRupee size={15} /> Copy summary
+                  <BadgeIndianRupee size={15} /> {t("market:mandi.copySummary")}
                 </button>
                 <button
                   className="primary-button"
@@ -153,7 +156,7 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
                     netProfit: Math.round(data.buyerNetProfit),
                   })}
                 >
-                  {saveOfferMut.isPending ? "Saving…" : "Save offer"}
+                  {saveOfferMut.isPending ? t("common:saving") : t("market:mandi.saveOffer")}
                 </button>
               </div>
             </>
@@ -165,31 +168,31 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">NET REALIZATION AFTER TRANSPORT & COMMISSION</span>
-              <h3>Mandi net profit comparison ({data.crop})</h3>
+              <span className="eyebrow">{t("market:mandi.compareEyebrow")}</span>
+              <h3>{t("market:mandi.compareTitle", { crop: t(`common:crops.${data.crop}`, { defaultValue: data.crop }) })}</h3>
               <p>{data.priceSourceLabel}</p>
             </div>
             <Truck size={19} className="muted-icon" />
           </div>
           <div className="market-table mandi-compare-table">
             <div className="mandi-compare-head">
-              <span>MANDI</span>
-              <span>MODAL RATE</span>
-              <span>TRANSPORT + FEE</span>
-              <span>NET REALIZATION</span>
-              <span>NET PROFIT</span>
+              <span>{t("market:rates.colMandi")}</span>
+              <span>{t("market:rates.colModalPrice")}</span>
+              <span>{t("market:mandi.transportFee")}</span>
+              <span>{t("market:mandi.netRealization")}</span>
+              <span>{t("market:mandi.netProfit")}</span>
             </div>
             {data.mandiComparisons.map((row) => (
               <div key={row.mandi} className="mandi-compare-row">
                 <span>
                   <strong>{row.mandi}</strong>
-                  <small>{row.distanceKm} km · Effective ₹{row.effectivePricePerQuintal.toLocaleString("en-IN")}/q</small>
+                  <small>{row.distanceKm} km · {formatCurrency(row.effectivePricePerQuintal, i18n.language)}/q</small>
                 </span>
-                <strong>₹{row.modalPrice.toLocaleString("en-IN")}/q</strong>
-                <span>₹{(row.transportCost + row.mandiCommission + row.spoilageLoss).toLocaleString("en-IN")}</span>
-                <strong>₹{row.netRealization.toLocaleString("en-IN")}</strong>
+                <strong>{formatCurrency(row.modalPrice, i18n.language)}/q</strong>
+                <span>{formatCurrency(row.transportCost + row.mandiCommission + row.spoilageLoss, i18n.language)}</span>
+                <strong>{formatCurrency(row.netRealization, i18n.language)}</strong>
                 <strong className={row.netProfit >= 0 ? "positive" : "negative"}>
-                  ₹{row.netProfit.toLocaleString("en-IN")}
+                  {formatCurrency(row.netProfit, i18n.language)}
                 </strong>
               </div>
             ))}
@@ -201,19 +204,19 @@ export default function MandiNegotiationWorkspace({ trackedExpensesTotal, onToas
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">BUYER OFFER LOG</span>
-              <h3>Saved negotiation checks</h3>
+              <span className="eyebrow">{t("market:mandi.offerLogEyebrow")}</span>
+              <h3>{t("market:mandi.offerLogTitle")}</h3>
             </div>
           </div>
           <div className="saved-scenarios-list">
             {(offerHistoryQuery.data ?? []).map((o: { id: number; crop: string; quantityQ: number; buyerOfferPerQ: number; verdict: string; bestMandi: string; netProfit: number; createdAt: string | Date }) => (
               <div key={o.id} className="saved-scenario-row">
                 <div>
-                  <strong>{o.crop} · {o.quantityQ}q @ ₹{o.buyerOfferPerQ}/q</strong>
-                  <small>Best mandi: {o.bestMandi} · {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                  <strong>{t(`common:crops.${o.crop}`, { defaultValue: o.crop })} · {o.quantityQ}q @ {formatCurrency(o.buyerOfferPerQ, i18n.language)}/q</strong>
+                  <small>{o.bestMandi} · {formatDate(o.createdAt, i18n.language)}</small>
                 </div>
                 <span className={`status-pill ${o.verdict === "ACCEPT" ? "green" : "amber"}`}>{o.verdict.replaceAll("_", " ")}</span>
-                <b>₹{o.netProfit.toLocaleString("en-IN")} net</b>
+                <b>{formatCurrency(o.netProfit, i18n.language)}</b>
               </div>
             ))}
           </div>

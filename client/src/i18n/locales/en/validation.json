@@ -1,0 +1,14 @@
+{
+  "required": "This field is required.",
+  "minBudget": "Enter at least ₹1,000 to run comparison.",
+  "invalidImageType": "Choose a PNG, JPEG, or WebP image.",
+  "imageTooLarge": "Please keep your image under 8 MB.",
+  "profilePhotoTooLarge": "Please keep your profile photo under 5 MB.",
+  "mediaTooLarge": "Keep community media under 12 MB.",
+  "readFileError": "We could not read that file. Please try again.",
+  "networkError": "Network error. Please check your connection and try again.",
+  "aiTranslationFailed": "AI response could not be generated in the selected language. Please try again.",
+  "voiceUnavailable": "Voice input is unavailable on this browser.",
+  "transcribing": "Transcribing voice note…",
+  "transcribeFailed": "We could not transcribe that voice note. Please try again."
+}

@@ -1,0 +1,32 @@
+{
+  "backHome": "Back to Namma Rytha",
+  "newFarmer": "NEW FARMER",
+  "farmerAccess": "FARMER ACCESS",
+  "createTitle": "Create your farm account",
+  "welcomeTitle": "Welcome back to your farm",
+  "createSubtitle": "Sign up with your username and password to get started.",
+  "signinSubtitle": "Sign in with your username or email and password.",
+  "fullName": "Your Full Name",
+  "fullNamePlaceholder": "e.g. Ramesh Kumar",
+  "usernameOrEmail": "Username or Email",
+  "usernamePlaceholder": "e.g. ramesh_farm or email@example.com",
+  "password": "Password",
+  "passwordPlaceholder": "Enter your password",
+  "createAccountBtn": "Create Farm Account",
+  "signInBtn": "Sign In to My Farm",
+  "alreadyHaveAccount": "Already have a farm account?",
+  "newToRytha": "New to Namma Rytha?",
+  "signInLink": "Sign in",
+  "registerLink": "Create account",
+  "orTryDemo": "OR",
+  "demoBtn": "Instant Demo Access (No Signup Required)",
+  "demoNote": "Explore Digital Twin, Disease Radar, Smart Irrigation, and Mandi Negotiation immediately.",
+  "dataProtected": "Your farm data stays private to your account.",
+  "errors": {
+    "missingIdentifier": "Please enter your email or username.",
+    "shortPassword": "Password must be at least 4 characters.",
+    "missingName": "Please enter your name.",
+    "signInFailed": "Sign-in failed. Please try again.",
+    "demoFailed": "Demo access failed."
+  }
+}

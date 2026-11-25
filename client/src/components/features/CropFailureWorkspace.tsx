@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertCircle, CheckCircle2, ClipboardCheck, HelpCircle, Microscope, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
@@ -14,6 +15,7 @@ const SYMPTOM_OPTIONS = [
 ];
 
 export default function CropFailureWorkspace() {
+  const { t } = useTranslation(["crop", "common"]);
   const [crop, setCrop] = useState("Tomato");
   const [soilType, setSoilType] = useState("Red sandy loam");
   const [soilPh, setSoilPh] = useState("5.3");
@@ -63,23 +65,23 @@ export default function CropFailureWorkspace() {
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">CROP FAILURE INVESTIGATION INTAKE</span>
-              <h3>Enter season soil, water & symptom history</h3>
-              <p>Analyze yield loss to separate metric-backed indicators from possible field hypotheses.</p>
+              <span className="eyebrow">{t("crop:failureAnalysis.pageEyebrow")}</span>
+              <h3>{t("crop:failureAnalysis.pageTitle")}</h3>
+              <p>{t("crop:failureAnalysis.pageDescription")}</p>
             </div>
             <Microscope size={21} className="muted-icon" />
           </div>
 
           <form className="announcement-form-grid" style={{ marginTop: 14 }} onSubmit={handleSubmit}>
             <label>
-              Affected crop
+              {t("common:crop")}
               <select value={crop} onChange={(e) => setCrop(e.target.value)}>
-                <option>Tomato</option>
-                <option>Ragi</option>
-                <option>Maize</option>
-                <option>Chilli</option>
-                <option>Onion</option>
-                <option>Groundnut</option>
+                <option value="Tomato">{t("common:crops.Tomato")}</option>
+                <option value="Ragi">{t("common:crops.Ragi")}</option>
+                <option value="Maize">{t("common:crops.Maize")}</option>
+                <option value="Chilli">{t("common:crops.Chilli")}</option>
+                <option value="Onion">{t("common:crops.Onion")}</option>
+                <option value="Groundnut">{t("common:crops.Groundnut")}</option>
               </select>
             </label>
             <label>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { AlertCircle, Layers, RefreshCw, Satellite, ShieldCheck, TrendingUp } from "lucide-react";
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
+  const { t } = useTranslation(["farm"]);
   const queryInput = useMemo(() => ({ lat, lng }), [lat, lng]);
   const satQuery = trpc.satellite.insights.useQuery(queryInput, { refetchOnWindowFocus: false });
   const plots = satQuery.data?.plots ?? [];
@@ -84,7 +86,7 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
     return (
       <div className="panel rytha-loading-card">
         <RefreshCw size={20} className="spin" />
-        <strong>Loading Esri satellite imagery & vegetation zones…</strong>
+        <strong>{t("farm:satellite.loading")}</strong>
       </div>
     );
   }
@@ -94,20 +96,20 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
       <section className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">IMAGERY & TELEMETRY SOURCE</span>
+            <span className="eyebrow">{t("farm:satellite.eyebrow")}</span>
             <h3>{satQuery.data?.imageryProvider}</h3>
             <p>{satQuery.data?.ndviSource}</p>
           </div>
           {satQuery.data?.configuredSentinel ? (
-            <span className="status-pill green"><ShieldCheck size={13} /> Sentinel-2 Live</span>
+            <span className="status-pill green"><ShieldCheck size={13} /> {t("farm:satellite.sentinelLive")}</span>
           ) : (
-            <span className="status-pill amber"><AlertCircle size={13} /> Modeled Estimate · No satellite key configured</span>
+            <span className="status-pill amber"><AlertCircle size={13} /> {t("farm:satellite.modeledEstimate")}</span>
           )}
         </div>
         {!satQuery.data?.configuredSentinel && (
           <div className="market-disclaimer" style={{ marginBottom: 10 }}>
             <AlertCircle size={15} />
-            <span>Vegetation values (NDVI/NDWI) are modeled estimates based on plot telemetry and weather. Connect Sentinel Hub credentials for real Sentinel-2 imagery &amp; cloud-cover dates.</span>
+            <span>{t("farm:satellite.modeledBanner")}</span>
           </div>
         )}
 
@@ -126,13 +128,13 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
           </div>
           <div className="sat-layer-tabs">
             <button type="button" className={layerMode === "satellite" ? "active" : ""} onClick={() => setLayerMode("satellite")}>
-              <Satellite size={13} /> Raw Satellite
+              <Satellite size={13} /> {t("farm:satellite.layers.satellite")}
             </button>
             <button type="button" className={layerMode === "ndvi" ? "active" : ""} onClick={() => setLayerMode("ndvi")}>
-              <Layers size={13} /> NDVI Health
+              <Layers size={13} /> {t("farm:satellite.layers.ndvi")}
             </button>
             <button type="button" className={layerMode === "moisture" ? "active" : ""} onClick={() => setLayerMode("moisture")}>
-              NDWI Moisture
+              {t("farm:satellite.layers.moisture")}
             </button>
           </div>
         </div>
@@ -140,11 +142,11 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
         <div className="sat-map-wrapper">
           <div ref={mapEl} className="sat-leaflet-container" />
           <div className="sat-legend">
-            <strong>VEGETATION INDEX (NDVI)</strong>
+            <strong>NDVI</strong>
             <div className="sat-legend-scale">
-              <span><i style={{ background: "#e07a3d" }} /> Stressed (&lt;0.55)</span>
-              <span><i style={{ background: "#d9a22b" }} /> Monitor (0.55–0.65)</span>
-              <span><i style={{ background: "#2b8a57" }} /> Healthy (&gt;0.65)</span>
+              <span><i style={{ background: "#e07a3d" }} /> (&lt;0.55)</span>
+              <span><i style={{ background: "#d9a22b" }} /> (0.55–0.65)</span>
+              <span><i style={{ background: "#2b8a57" }} /> (&gt;0.65)</span>
             </div>
           </div>
         </div>
@@ -155,27 +157,27 @@ export default function SatelliteHealthWorkspace({ lat, lng }: Props) {
           <section className="panel">
             <div className="panel-title">
               <div>
-                <span className="eyebrow">FIELD SUB-ZONE INSPECTION</span>
+                <span className="eyebrow">{t("farm:satellite.zoneEyebrow")}</span>
                 <h3>{activePlot.plotName} · {activePlot.healthLabel}</h3>
-                <p>Click any zone polygon on the satellite map or review anomalies below.</p>
+                <p>{t("farm:satellite.zoneSub")}</p>
               </div>
               <span className={`status-pill ${activePlot.unhealthyZoneCount > 0 ? "amber" : "green"}`}>
-                {activePlot.unhealthyZoneCount} watch zone(s)
+                {t("farm:satellite.watchZones", { count: activePlot.unhealthyZoneCount })}
               </span>
             </div>
 
             <div className="sim-kpi-grid" style={{ marginBottom: 14 }}>
               <div className="sim-kpi">
-                <small>CURRENT NDVI</small>
+                <small>{t("farm:satellite.currentNdvi")}</small>
                 <strong>{activePlot.currentNdvi}</strong>
                 <span className={activePlot.changePct >= 0 ? "positive" : "negative"}>
-                  {activePlot.changePct >= 0 ? "+" : ""}{activePlot.changePct}% vs 2 wks ago
+                  {t("farm:satellite.vs2Wks", { pct: `${activePlot.changePct >= 0 ? "+" : ""}${activePlot.changePct}` })}
                 </span>
               </div>
               <div className="sim-kpi">
-                <small>NDWI MOISTURE</small>
+                <small>{t("farm:satellite.ndwiMoisture")}</small>
                 <strong>{activePlot.ndwiMoistureIndex}</strong>
-                <span>Canopy water signature</span>
+                <span>{t("farm:satellite.canopySig")}</span>
               </div>
             </div>
 

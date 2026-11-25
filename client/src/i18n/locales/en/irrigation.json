@@ -1,0 +1,68 @@
+{
+  "pageEyebrow": "SMART IRRIGATION",
+  "pageTitle": "Water only when your crop needs it.",
+  "pageDescription": "Recommendations use the selected plot’s soil-moisture threshold, live Open-Meteo ET0, and multi-crop water budgeting.",
+  "statuses": {
+    "IRRIGATE SOON": "IRRIGATE SOON",
+    "WAIT FOR RAIN": "WAIT FOR RAIN",
+    "DELAY IRRIGATION": "DELAY IRRIGATION",
+    "MOISTURE OK": "MOISTURE OK"
+  },
+  "soilMoisture": "Soil moisture",
+  "rainChance": "Rain chance",
+  "weather": "Weather",
+  "saveRec": "Save this recommendation",
+  "exportPdf": "Export PDF",
+  "enterManually": "Enter manually",
+  "liveOpenMeteo": "Live Open-Meteo forecast",
+  "savedFallback": "Saved forecast fallback",
+  "chartTitle": "Soil moisture · {{plot}}",
+  "waterBudget": {
+    "eyebrow": "WATER BUDGET PLANNER",
+    "title": "Distribute limited water across crops",
+    "availableDaily": "Available daily water (L)",
+    "totalDemand": "TOTAL DEMAND",
+    "surplusDeficit": "SURPLUS / DEFICIT",
+    "weeklyUsed": "WEEKLY LOGGED",
+    "logUsage": "Log irrigation usage",
+    "litersUsed": "Liters used",
+    "method": "Irrigation method",
+    "methods": {
+      "drip": "Drip",
+      "sprinkler": "Sprinkler",
+      "flood": "Flood"
+    },
+    "saveLog": "Save water log"
+  },
+  "iot": {
+    "pageEyebrow": "IOT & ANOMALY INTELLIGENCE",
+    "pageTitle": "Live plot sensors & anomaly alerts.",
+    "pageDescription": "Monitor soil moisture, temperature, humidity, and sensor battery health separately for hardware and simulated readings.",
+    "activeAnomalies": "ACTIVE ANOMALIES",
+    "resolve": "Resolve",
+    "liveReadingsEyebrow": "LIVE SENSOR READINGS",
+    "liveReadingsTitle": "Plot sensor status",
+    "loading": "Loading sensor data…",
+    "emptyTitle": "No sensor readings",
+    "emptyDesc": "Ingest your first reading below or connect an IoT device using your plot's ingest token.",
+    "hardware": "HARDWARE",
+    "simulated": "SIMULATED",
+    "moistureStatus": {
+      "DRY": "DRY",
+      "SATURATED": "SATURATED",
+      "NORMAL": "NORMAL"
+    },
+    "temp": "Temp",
+    "humidity": "Humidity",
+    "battery": "Battery",
+    "lowBattery": "LOW",
+    "historyEyebrow": "7-DAY MOISTURE HISTORY",
+    "historyTitle": "Soil moisture trend",
+    "historyNote": "Historical trend uses saved sensor cache when live IoT readings are unavailable.",
+    "simulateEyebrow": "SIMULATE A READING",
+    "simulateTitle": "Test your IoT integration",
+    "simulateHelp": "Ingest a simulated sensor reading for plot #1 to test the sensor pipeline. Use your real ingest token for hardware devices.",
+    "simulateBtn": "Simulate reading",
+    "ingesting": "Ingesting…"
+  }
+}

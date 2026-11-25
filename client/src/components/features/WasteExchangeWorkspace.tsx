@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, MapPin, MessageSquare, PackagePlus, Phone, Recycle, Search, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -17,6 +18,7 @@ const CATEGORIES = [
 ] as const;
 
 export default function WasteExchangeWorkspace({ onToast }: Props) {
+  const { t } = useTranslation(["farm", "common"]);
   const { user } = useAuth();
   const [category, setCategory] = useState("all");
   const [district, setDistrict] = useState("");

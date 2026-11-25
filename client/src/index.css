@@ -28,7 +28,12 @@
 
 * { box-sizing: border-box; }
 html { background: var(--background); }
-body { margin: 0; min-width: 320px; background: var(--background); color: var(--foreground); font-family: 'DM Sans', sans-serif; }
+body { margin: 0; min-width: 320px; background: var(--background); color: var(--foreground); font-family: 'DM Sans', 'Noto Sans', 'Noto Sans Kannada', 'Noto Sans Devanagari', 'Noto Sans Telugu', 'Noto Sans Tamil', sans-serif; }
+html[lang="kn"] body, html[lang="hi"] body, html[lang="te"] body, html[lang="ta"] body { line-height: 1.55; }
+html[lang="kn"] .nav-item, html[lang="hi"] .nav-item, html[lang="te"] .nav-item, html[lang="ta"] .nav-item { min-height: 42px; padding-top: 6px; padding-bottom: 6px; line-height: 1.35; }
+.language-switcher { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-size: 12px; font-weight: 700; cursor: pointer; }
+.language-switcher select { background: transparent; border: 0; color: inherit; font-weight: 700; cursor: pointer; outline: none; }
+.language-switcher.compact { padding: 5px 8px; font-size: 11px; }
 button, input, select, textarea { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(73, 145, 104, .28); outline-offset: 2px; }

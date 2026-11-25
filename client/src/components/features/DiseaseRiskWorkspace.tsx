@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertCircle, CloudRain, FileText, Printer, RefreshCw, ShieldAlert, ShieldCheck, ThermometerSun } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { formatDate } from "@/i18n";
 
 type Props = {
   selectedPlot: string;
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyItems }: Props) {
+  const { t, i18n } = useTranslation(["crop", "common"]);
   const crop = selectedPlot.includes("Ragi") ? "Ragi" : selectedPlot.includes("Maize") ? "Maize" : "Tomato";
   const [showHealthReport, setShowHealthReport] = useState(false);
   const [treatmentCondition, setTreatmentCondition] = useState("Early Blight");
@@ -34,39 +37,43 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
       <section className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">PREDICTIVE DISEASE RISK RADAR · WEATHER + HISTORY</span>
-            <h3>Upcoming 7-day outbreak risk for {crop}</h3>
+            <span className="eyebrow">{t("crop:diseaseRisk.eyebrow")}</span>
+            <h3>{t("crop:diseaseRisk.title", { crop: t(`common:crops.${crop}`, { defaultValue: crop }) })}</h3>
             <p>
-              Combines {risk?.weatherSource === "live" ? "live Open-Meteo" : "fallback"} humidity ({risk?.humidity ?? 68}%),
-              forecast rain ({risk?.rainExpectedMm48h ?? 0} mm / 48h), and your past diagnosis logs ({risk?.priorReportsCount ?? 0} carried reports).
+              {t("crop:diseaseRisk.subtitle", {
+                source: risk?.weatherSource === "live" ? t("crop:diseaseRisk.liveSource") : t("crop:diseaseRisk.fallbackSource"),
+                humidity: risk?.humidity ?? 68,
+                rain: risk?.rainExpectedMm48h ?? 0,
+                count: risk?.priorReportsCount ?? 0,
+              })}
             </p>
           </div>
           <button className="secondary-button" onClick={() => setShowHealthReport((v) => !v)}>
-            <FileText size={15} /> {showHealthReport ? "Hide report" : "Crop health report"}
+            <FileText size={15} /> {showHealthReport ? t("crop:diseaseRisk.hideReport") : t("crop:diseaseRisk.showReport")}
           </button>
         </div>
 
         <div className="ai-mode-banner">
           {aiStatusQuery.data?.liveLlmConfigured ? (
-            <span className="status-pill green"><ShieldCheck size={13} /> Cloud Vision AI Active</span>
+            <span className="status-pill green"><ShieldCheck size={13} /> {t("crop:diseaseRisk.cloudAiActive")}</span>
           ) : (
-            <span className="status-pill amber"><AlertCircle size={13} /> Local Visual & Symptom Engine Active (set GEMINI_API_KEY for cloud vision AI)</span>
+            <span className="status-pill amber"><AlertCircle size={13} /> {t("crop:diseaseRisk.localEngineActive")}</span>
           )}
         </div>
 
         {riskQuery.isLoading ? (
-          <div className="history-empty"><RefreshCw size={18} className="spin" /><span>Computing 7-day weather & pathology risk…</span></div>
+          <div className="history-empty"><RefreshCw size={18} className="spin" /><span>{t("crop:diseaseRisk.computing")}</span></div>
         ) : risk ? (
           <>
             <div className="risk-summary-bar">
               <div className={`risk-gauge ${risk.overallLevel.toLowerCase()}`}>
                 <strong>{risk.overallRiskPct}%</strong>
-                <span>{risk.overallLevel} Outbreak Risk</span>
+                <span>{t("crop:diseaseRisk.outbreakRisk", { level: risk.overallLevel })}</span>
               </div>
               <div className="risk-weather-pills">
-                <span><CloudRain size={14} /> Wet days next 7d: <b>{risk.wetDaysNext7d}</b></span>
-                <span><ThermometerSun size={14} /> Humidity: <b>{risk.humidity}%</b></span>
-                <span><ShieldAlert size={14} /> Prior carryover cases: <b>{risk.priorReportsCount}</b></span>
+                <span><CloudRain size={14} /> {t("crop:diseaseRisk.wetDays")}: <b>{risk.wetDaysNext7d}</b></span>
+                <span><ThermometerSun size={14} /> {t("crop:diseaseRisk.humidity")}: <b>{risk.humidity}%</b></span>
+                <span><ShieldAlert size={14} /> {t("crop:diseaseRisk.priorCases")}: <b>{risk.priorReportsCount}</b></span>
               </div>
             </div>
 
@@ -79,8 +86,8 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
                       {item.riskScorePct}% · {item.riskLevel}
                     </span>
                   </div>
-                  <p className="risk-symptom"><b>Watch for:</b> {item.symptoms}</p>
-                  <p className="risk-prevent"><b>Preventive step:</b> {item.prevention}</p>
+                  <p className="risk-symptom"><b>{t("crop:diseaseRisk.watchFor")}</b> {item.symptoms}</p>
+                  <p className="risk-prevent"><b>{t("crop:diseaseRisk.preventiveStep")}</b> {item.prevention}</p>
                   <ul className="risk-drivers">
                     {item.drivers.map((d) => <li key={d}>{d}</li>)}
                   </ul>
@@ -95,31 +102,31 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
         <section className="panel health-report-card">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">CROP HEALTH REPORT · {selectedPlot.toUpperCase()}</span>
-              <h3>Printable Plot Health Summary</h3>
-              <p>Generated {new Date().toLocaleString("en-IN")}</p>
+              <span className="eyebrow">{t("crop:diseaseRisk.reportEyebrow", { plot: selectedPlot.toUpperCase() })}</span>
+              <h3>{t("crop:diseaseRisk.reportTitle")}</h3>
+              <p>{formatDate(new Date(), i18n.language)}</p>
             </div>
             <button className="primary-button" onClick={() => window.print()}>
-              <Printer size={14} /> Print / Save PDF
+              <Printer size={14} /> {t("crop:diseaseRisk.printPdf")}
             </button>
           </div>
           <div className="health-report-stats">
-            <div><small>MONITORED CROP</small><strong>{crop}</strong></div>
-            <div><small>7-DAY DISEASE RISK</small><strong>{risk ? `${risk.overallRiskPct}% (${risk.overallLevel})` : "Calculating…"}</strong></div>
-            <div><small>TOTAL SCANS LOGGED</small><strong>{historyItems.length}</strong></div>
+            <div><small>{t("crop:diseaseRisk.monitoredCrop")}</small><strong>{t(`common:crops.${crop}`, { defaultValue: crop })}</strong></div>
+            <div><small>{t("crop:diseaseRisk.risk7d")}</small><strong>{risk ? `${risk.overallRiskPct}% (${risk.overallLevel})` : t("common:loading")}</strong></div>
+            <div><small>{t("crop:diseaseRisk.totalScans")}</small><strong>{historyItems.length}</strong></div>
           </div>
           <div className="health-report-history">
-            <strong>Recent Crop Checks</strong>
+            <strong>{t("crop:diseaseRisk.recentChecks")}</strong>
             {historyItems.length === 0 ? (
-              <p className="capstone-muted-copy">No leaf scans uploaded yet for {selectedPlot}. Upload a crop photo above to begin building your health timeline.</p>
+              <p className="capstone-muted-copy">{t("crop:diseaseRisk.noScans", { plot: selectedPlot })}</p>
             ) : (
               historyItems.slice(0, 5).map((item) => (
                 <div key={item.id} className="saved-scenario-row">
                   <div>
                     <strong>{item.likelyCondition}</strong>
-                    <small>{new Date(item.createdAt).toLocaleDateString("en-IN")} · {item.severity} severity</small>
+                    <small>{formatDate(item.createdAt, i18n.language)} · {item.severity}</small>
                   </div>
-                  <span>AI estimate ({Math.round(item.confidence)}%)</span>
+                  <span>{t("crop:diseaseRisk.aiEstimate", { pct: Math.round(item.confidence) })}</span>
                 </div>
               ))
             )}
@@ -130,24 +137,24 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
       <section className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">TREATMENT &amp; RECOVERY TIMELINE</span>
-            <h3>Log field treatments &amp; track crop recovery</h3>
-            <p>Track applied sprays, pruning, or organic controls and monitor recovery over time.</p>
+            <span className="eyebrow">{t("crop:diseaseRisk.treatmentEyebrow")}</span>
+            <h3>{t("crop:diseaseRisk.treatmentTitle")}</h3>
+            <p>{t("crop:diseaseRisk.treatmentSub")}</p>
           </div>
         </div>
         <div className="fm-form-grid" style={{ marginBottom: 12 }}>
-          <label>Condition / Symptom
-            <input value={treatmentCondition} onChange={(e) => setTreatmentCondition(e.target.value)} placeholder="e.g. Early Blight" />
+          <label>{t("crop:diseaseRisk.conditionLabel")}
+            <input value={treatmentCondition} onChange={(e) => setTreatmentCondition(e.target.value)} placeholder={t("crop:diseaseRisk.conditionPlaceholder")} />
           </label>
-          <label>Treatment applied
-            <input value={treatmentApplied} onChange={(e) => setTreatmentApplied(e.target.value)} placeholder="e.g. Pruned lower leaves + neem oil 3ml/L" />
+          <label>{t("crop:diseaseRisk.treatmentLabel")}
+            <input value={treatmentApplied} onChange={(e) => setTreatmentApplied(e.target.value)} placeholder={t("crop:diseaseRisk.treatmentPlaceholder")} />
           </label>
-          <label>Recovery status
+          <label>{t("crop:diseaseRisk.outcomeLabel")}
             <select value={treatmentOutcome} onChange={(e) => setTreatmentOutcome(e.target.value)}>
-              <option value="monitoring">Monitoring</option>
-              <option value="improving">Improving</option>
-              <option value="recovered">Recovered</option>
-              <option value="escalated">Needs agronomist</option>
+              <option value="monitoring">{t("crop:diseaseRisk.outcomes.monitoring")}</option>
+              <option value="improving">{t("crop:diseaseRisk.outcomes.improving")}</option>
+              <option value="recovered">{t("crop:diseaseRisk.outcomes.recovered")}</option>
+              <option value="escalated">{t("crop:diseaseRisk.outcomes.escalated")}</option>
             </select>
           </label>
         </div>
@@ -156,18 +163,18 @@ export default function DiseaseRiskWorkspace({ selectedPlot, lat, lng, historyIt
           disabled={logTreatmentMut.isPending || !treatmentApplied.trim()}
           onClick={() => logTreatmentMut.mutate({ plotName: selectedPlot, crop, conditionName: treatmentCondition, treatmentApplied, outcome: treatmentOutcome })}
         >
-          {logTreatmentMut.isPending ? "Saving…" : "Log treatment"}
+          {logTreatmentMut.isPending ? t("common:saving") : t("crop:diseaseRisk.logTreatment")}
         </button>
 
         {(treatmentsQuery.data ?? []).length > 0 && (
           <div className="saved-scenarios-list" style={{ marginTop: 12 }}>
-            {(treatmentsQuery.data ?? []).map((t: { id: number; plotName: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: string | Date }) => (
-              <div key={t.id} className="saved-scenario-row">
+            {(treatmentsQuery.data ?? []).map((item: { id: number; plotName: string; conditionName: string; treatmentApplied: string; outcome: string; loggedAt: string | Date }) => (
+              <div key={item.id} className="saved-scenario-row">
                 <div>
-                  <strong>{t.conditionName} · {t.plotName}</strong>
-                  <small>{t.treatmentApplied} · {new Date(t.loggedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                  <strong>{item.conditionName} · {item.plotName}</strong>
+                  <small>{item.treatmentApplied} · {formatDate(item.loggedAt, i18n.language)}</small>
                 </div>
-                <span className={`status-pill ${t.outcome === "recovered" ? "green" : t.outcome === "improving" ? "blue" : "amber"}`}>{t.outcome}</span>
+                <span className={`status-pill ${item.outcome === "recovered" ? "green" : item.outcome === "improving" ? "blue" : "amber"}`}>{t(`crop:diseaseRisk.outcomes.${item.outcome}`, { defaultValue: item.outcome })}</span>
               </div>
             ))}
           </div>

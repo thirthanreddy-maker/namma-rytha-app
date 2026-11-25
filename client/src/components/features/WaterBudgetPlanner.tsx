@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CloudRain, Droplets, Gauge, Plus, RefreshCw, Waves } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { trpc } from "@/lib/trpc";
+import { formatNumber } from "@/i18n";
 
 type Props = {
   lat: number;
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export default function WaterBudgetPlanner({ lat, lng, onToast }: Props) {
+  const { t, i18n } = useTranslation(["irrigation", "common"]);
   const [availableLiters, setAvailableLiters] = useState(32000);
   const [logPlot, setLogPlot] = useState("Plot A · Tomato");
   const [logLiters, setLogLiters] = useState("11500");
@@ -42,11 +45,10 @@ export default function WaterBudgetPlanner({ lat, lng, onToast }: Props) {
       <section className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">SMART WATER BUDGET PLANNER · ET0 & RAIN FORECAST</span>
-            <h3>Distribute farm water across multiple crops</h3>
+            <span className="eyebrow">{t("irrigation:waterBudget.eyebrow")}</span>
+            <h3>{t("irrigation:waterBudget.title")}</h3>
             <p>
-              Uses {plan?.weatherSource === "live" ? "live Open-Meteo ET0" : "cached ET0"} ({plan?.et0DailyMm ?? 4.3} mm/day)
-              and effective rain credit ({plan?.rainCreditMmDay ?? 0} mm/day) to prioritize high-sensitivity plots.
+              {plan?.weatherSource === "live" ? t("irrigation:liveOpenMeteo") : t("irrigation:savedFallback")} ({plan?.et0DailyMm ?? 4.3} mm/day)
             </p>
           </div>
           <Waves size={21} className="muted-icon" />
@@ -55,8 +57,8 @@ export default function WaterBudgetPlanner({ lat, lng, onToast }: Props) {
         <div className="budget-control-bar">
           <label className="budget-slider-label">
             <div>
-              <span>Available daily borewell / tank water</span>
-              <strong>{availableLiters.toLocaleString("en-IN")} L / day</strong>
+              <span>{t("irrigation:waterBudget.availableDaily")}</span>
+              <strong>{formatNumber(availableLiters, i18n.language)} {t("common:liters")}</strong>
             </div>
             <input
               type="range"
@@ -69,12 +71,12 @@ export default function WaterBudgetPlanner({ lat, lng, onToast }: Props) {
           </label>
           {plan && (
             <div className={`budget-status-card ${plan.farmSurplusOrDeficitLiters >= 0 ? "surplus" : "deficit"}`}>
-              <small>{plan.status.toUpperCase()}</small>
+              <small>{t("irrigation:waterBudget.surplusDeficit")}</small>
               <strong>
                 {plan.farmSurplusOrDeficitLiters >= 0 ? "+" : ""}
-                {plan.farmSurplusOrDeficitLiters.toLocaleString("en-IN")} L/day
+                {formatNumber(plan.farmSurplusOrDeficitLiters, i18n.language)} {t("common:liters")}
               </strong>
-              <span>Weekly savings vs flood irrigation: {plan.weeklySavedVsFloodLiters.toLocaleString("en-IN")} L</span>
+              <span>{formatNumber(plan.weeklySavedVsFloodLiters, i18n.language)} {t("common:liters")}</span>
             </div>
           )}
         </div>

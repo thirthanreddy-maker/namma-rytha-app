@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import {
   TrendingUp, IndianRupee, RefreshCw, Sparkles, ChevronDown, ChevronUp,
   Calendar, CircleAlert
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
+import { formatCurrency } from "@/i18n";
 
 type Props = { onToast: (msg: string) => void };
 
@@ -28,6 +30,7 @@ type ForecastData = {
 };
 
 export default function FinancialForecastWorkspace({ onToast }: Props) {
+  const { t, i18n } = useTranslation(["market", "farm", "common"]);
   const [form, setForm] = useState({
     crop: "Tomato",
     plotName: "Plot A",
@@ -57,10 +60,10 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
 
   const chartData = forecast?.seasons.map(s => ({
     name: s.label,
-    Conservative: s.conservative,
-    Expected: s.expected,
-    Optimistic: s.optimistic,
-    "Cumulative Cost": -s.cumulativeCost,
+    [t("market:forecast.conservativeProfit")]: s.conservative,
+    [t("market:forecast.expectedProfit")]: s.expected,
+    [t("market:forecast.optimisticProfit")]: s.optimistic,
+    [t("market:profit.totalCost")]: -s.cumulativeCost,
   })) ?? [];
 
   return (
@@ -68,16 +71,16 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
       <div className="panel ff-form-panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">SEASON FORECAST INPUTS</span>
-            <h3>Seasonal financial forecast</h3>
+            <span className="eyebrow">{t("market:forecast.eyebrow")}</span>
+            <h3>{t("market:forecast.title")}</h3>
           </div>
           <TrendingUp size={21} className="muted-icon" />
         </div>
         <div className="ff-form-grid">
-          <label>Crop
-            <input value={form.crop} onChange={e => setForm(f => ({ ...f, crop: e.target.value }))} placeholder="e.g. Tomato" />
+          <label>{t("common:crop")}
+            <input value={form.crop} onChange={e => setForm(f => ({ ...f, crop: e.target.value }))} placeholder="Tomato" />
           </label>
-          <label>Plot name
+          <label>{t("farm:farmMemory.plotName")}
             {plotOptions.length > 0 ? (
               <select value={form.plotName} onChange={e => {
                 const plot = plotOptions.find((p: { name: string }) => p.name === e.target.value);
@@ -86,13 +89,13 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
                 {plotOptions.map((p: { name: string }) => <option key={p.name}>{p.name}</option>)}
               </select>
             ) : (
-              <input value={form.plotName} onChange={e => setForm(f => ({ ...f, plotName: e.target.value }))} placeholder="e.g. Plot A" />
+              <input value={form.plotName} onChange={e => setForm(f => ({ ...f, plotName: e.target.value }))} placeholder="Plot A" />
             )}
           </label>
-          <label>Area (acres)
+          <label>{t("common:acres")}
             <input type="number" min="0.25" step="0.25" value={form.areaAcres} onChange={e => setForm(f => ({ ...f, areaAcres: e.target.value }))} />
           </label>
-          <label>Season
+          <label>{t("market:forecast.season")}
             <select value={form.season} onChange={e => setForm(f => ({ ...f, season: e.target.value }))}>
               <option>Kharif 2026</option>
               <option>Rabi 2026-27</option>
@@ -103,53 +106,51 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
         </div>
         <button className="primary-button" disabled={forecastMut.isPending} onClick={submit}>
           {forecastMut.isPending
-            ? <><RefreshCw size={15} className="spin" /> Building forecast…</>
-            : <><Sparkles size={15} /> Generate seasonal forecast</>
+            ? <><RefreshCw size={15} className="spin" /> {t("market:forecast.buildingBtn")}</>
+            : <><Sparkles size={15} /> {t("market:forecast.generateBtn")}</>
           }
         </button>
       </div>
 
       {forecast && (
         <>
-          {/* Summary cards */}
           <div className="metric-grid">
             <div className="metric-card">
               <div className="metric-icon amber"><IndianRupee size={19} /></div>
-              <span>Total investment</span>
-              <strong>₹{forecast.totalInvestment.toLocaleString("en-IN")}</strong>
-              <small className="muted-text">{form.areaAcres} acres · all inputs</small>
+              <span>{t("market:forecast.totalInvestment")}</span>
+              <strong>{formatCurrency(forecast.totalInvestment, i18n.language)}</strong>
+              <small className="muted-text">{form.areaAcres} {t("common:acres")}</small>
             </div>
             <div className="metric-card">
               <div className="metric-icon blue"><TrendingUp size={19} /></div>
-              <span>Conservative profit</span>
+              <span>{t("market:forecast.conservativeProfit")}</span>
               <strong className={forecast.conservativeProfit >= 0 ? "positive" : "negative"}>
-                ₹{Math.abs(forecast.conservativeProfit).toLocaleString("en-IN")}
+                {formatCurrency(Math.abs(forecast.conservativeProfit), i18n.language)}
               </strong>
-              <small className="muted-text">75% of expected yield</small>
+              <small className="muted-text">{t("market:forecast.conservativeSub")}</small>
             </div>
             <div className="metric-card">
               <div className="metric-icon green"><TrendingUp size={19} /></div>
-              <span>Expected profit</span>
+              <span>{t("market:forecast.expectedProfit")}</span>
               <strong className={forecast.expectedProfit >= 0 ? "positive" : "negative"}>
-                ₹{Math.abs(forecast.expectedProfit).toLocaleString("en-IN")}
+                {formatCurrency(Math.abs(forecast.expectedProfit), i18n.language)}
               </strong>
-              <small className="muted-text">Base scenario</small>
+              <small className="muted-text">{t("market:forecast.expectedSub")}</small>
             </div>
             <div className="metric-card">
               <div className="metric-icon purple"><TrendingUp size={19} /></div>
-              <span>Optimistic profit</span>
+              <span>{t("market:forecast.optimisticProfit")}</span>
               <strong className={forecast.optimisticProfit >= 0 ? "positive" : "negative"}>
-                ₹{Math.abs(forecast.optimisticProfit).toLocaleString("en-IN")}
+                {formatCurrency(Math.abs(forecast.optimisticProfit), i18n.language)}
               </strong>
-              <small className="muted-text">125% of expected yield</small>
+              <small className="muted-text">{t("market:forecast.optimisticSub")}</small>
             </div>
           </div>
 
-          {/* Cash flow chart */}
           <div className="panel chart-panel">
             <div className="panel-title">
               <div>
-                <span className="eyebrow">CASH FLOW TIMELINE · {form.season}</span>
+                <span className="eyebrow">{t("market:forecast.cashFlowEyebrow", { season: form.season })}</span>
                 <h3>{forecast.crop} · {forecast.plotName}</h3>
               </div>
               <Calendar size={20} className="muted-icon" />
@@ -159,29 +160,26 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
                 <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={v => `₹${Math.abs(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number) => [`₹${value.toLocaleString("en-IN")}`, ""]} />
+                  <Tooltip formatter={(value: number) => [formatCurrency(value, i18n.language), ""]} />
                   <ReferenceLine y={0} stroke="#888" strokeDasharray="3 3" />
                   <Legend />
-                  <Line type="monotone" dataKey="Conservative" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="Expected" stroke="#247b58" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="Optimistic" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="Cumulative Cost" stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
+                  <Line type="monotone" dataKey={t("market:forecast.conservativeProfit")} stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey={t("market:forecast.expectedProfit")} stroke="#247b58" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey={t("market:forecast.optimisticProfit")} stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey={t("market:profit.totalCost")} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             <small className="data-source-note">
-              {forecast.dataMode === "estimated"
-                ? "Revenue estimates based on CROP_CATALOG agronomic benchmarks. Actual results depend on market prices and field conditions."
-                : "Live market data used for revenue projections."}
+              {forecast.dataMode === "estimated" ? t("market:forecast.benchmarkNote") : t("market:forecast.liveNote")}
             </small>
           </div>
 
-          {/* Assumptions */}
           <div className="panel ff-assumptions">
             <div className="ff-assumptions-header" onClick={() => setShowAssumptions(!showAssumptions)}>
               <div>
-                <span className="eyebrow">MODEL TRANSPARENCY</span>
-                <h3>Forecast assumptions</h3>
+                <span className="eyebrow">{t("market:forecast.modelTransparency")}</span>
+                <h3>{t("market:forecast.assumptionsTitle")}</h3>
               </div>
               {showAssumptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
@@ -202,8 +200,8 @@ export default function FinancialForecastWorkspace({ onToast }: Props) {
       {!forecast && !forecastMut.isPending && (
         <div className="feature-empty">
           <TrendingUp size={28} />
-          <strong>Seasonal financial forecast</strong>
-          <span>Enter crop and plot details to generate a Conservative / Expected / Optimistic cash-flow timeline for your season.</span>
+          <strong>{t("market:forecast.emptyTitle")}</strong>
+          <span>{t("market:forecast.emptyDesc")}</span>
         </div>
       )}
     </div>

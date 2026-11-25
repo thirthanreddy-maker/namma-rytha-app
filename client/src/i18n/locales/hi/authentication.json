@@ -1,0 +1,32 @@
+{
+  "backHome": "नम्मा रैता पर वापस जाएं",
+  "newFarmer": "नया किसान",
+  "farmerAccess": "किसान प्रवेश",
+  "createTitle": "अपना कृषि खाता बनाएं",
+  "welcomeTitle": "अपने खेत में वापस स्वागत है",
+  "createSubtitle": "शुरू करने के लिए अपना उपयोगकर्ता नाम और पासवर्ड दर्ज करें।",
+  "signinSubtitle": "अपने उपयोगकर्ता नाम या ईमेल और पासवर्ड से साइन इन करें।",
+  "fullName": "आपका पूरा नाम",
+  "fullNamePlaceholder": "जैसे: रमेश कुमार",
+  "usernameOrEmail": "उपयोगकर्ता नाम या ईमेल",
+  "usernamePlaceholder": "जैसे: ramesh_farm या email@example.com",
+  "password": "पासवर्ड",
+  "passwordPlaceholder": "अपना पासवर्ड दर्ज करें",
+  "createAccountBtn": "कृषि खाता बनाएं",
+  "signInBtn": "मेरे खेत में साइन इन करें",
+  "alreadyHaveAccount": "क्या पहले से कृषि खाता है?",
+  "newToRytha": "नम्मा रैता पर नए हैं?",
+  "signInLink": "साइन इन",
+  "registerLink": "खाता बनाएं",
+  "orTryDemo": "या",
+  "demoBtn": "तुरंत डेमो प्रवेश (साइनअप की जरूरत नहीं)",
+  "demoNote": "डिजिटल ट्विन, रोग रडार, स्मार्ट सिंचाई और मंडी बातचीत तुरंत देखें।",
+  "dataProtected": "आपके खेत का डेटा आपके खाते में निजी रहता है।",
+  "errors": {
+    "missingIdentifier": "कृपया अपना ईमेल या उपयोगकर्ता नाम दर्ज करें।",
+    "shortPassword": "पासवर्ड कम से कम 4 अक्षरों का होना चाहिए।",
+    "missingName": "कृपया अपना नाम दर्ज करें।",
+    "signInFailed": "साइन-इन विफल रहा। कृपया पुनः प्रयास करें।",
+    "demoFailed": "डेमो प्रवेश विफल रहा।"
+  }
+}

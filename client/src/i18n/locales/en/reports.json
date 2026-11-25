@@ -1,0 +1,49 @@
+{
+  "analytics": {
+    "pageEyebrow": "FARM ANALYTICS",
+    "pageTitle": "See what is changing on your farm.",
+    "pageDescription": "Track task completion, crop value, and soil trends in one place so every decision is easier to measure.",
+    "tasksCompleted": "Tasks completed",
+    "thisWeek": "This week",
+    "trackedExpenses": "Tracked expenses",
+    "acrossAllPlots": "Across all plots",
+    "cropValueTrend": "Crop value trend",
+    "vsLastWeek": "Compared with last week",
+    "chartTitle": "Farm performance · last 7 days",
+    "recommendedFocus": "Recommended focus",
+    "focusSub": "Use these signals to plan your next field visit.",
+    "bestAction": "Best action",
+    "finishIrrigation": "Finish irrigation tasks",
+    "strongestCrop": "Strongest crop",
+    "nextReview": "Next review",
+    "tomorrowMorning": "Tomorrow morning"
+  },
+  "admin": {
+    "pageEyebrow": "ADMIN CONSOLE",
+    "pageTitle": "Admin insights",
+    "loading": "Loading platform insights…",
+    "restrictedTitle": "Admin access required",
+    "restrictedDesc": "This dashboard is protected by the server-side role guard.",
+    "opsEyebrow": "PLATFORM OPERATIONS",
+    "opsTitle": "See how Namma Rytha is helping farms.",
+    "opsDesc": "Aggregated platform signals for administrators, with no farmer data exposed in the client.",
+    "adminOnly": "Admin only",
+    "registeredFarmers": "Registered farmers",
+    "activePlots": "Active plots",
+    "sensorReadings": "Sensor readings",
+    "pendingCases": "Pending expert cases",
+    "liveFromDb": "Live from database",
+    "privacyTitle": "Privacy-aware analytics",
+    "privacyDesc": "Only aggregate counts are shown here. Ownership checks remain enforced on every farmer-level procedure."
+  },
+  "printable": {
+    "eyebrow": "IRRIGATION RECOMMENDATION REPORT",
+    "generated": "Generated {{date}}",
+    "cropStage": "CROP / STAGE",
+    "soilMoisture": "SOIL MOISTURE",
+    "triggerThreshold": "TRIGGER THRESHOLD",
+    "weather": "WEATHER",
+    "rain": "rain",
+    "footnote": "Weather source: Open-Meteo live forecast. This recommendation is advisory; inspect the plot before irrigating."
+  }
+}

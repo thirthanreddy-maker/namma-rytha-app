@@ -119,12 +119,18 @@ function generateAgronomicAssistantFallback(ctx: AssistantContext): string {
   }
 
   // Intent 3: When should I irrigate?
-  if (q.includes("irrigat") || q.includes("water") || q.includes("ನೀರು") || q.includes("ನೀರಾವರಿ") || q.includes("सिंचाई") || q.includes("पानी")) {
+  if (q.includes("irrigat") || q.includes("water") || q.includes("ನೀರು") || q.includes("ನೀರಾವರಿ") || q.includes("सिंचाई") || q.includes("पानी") || q.includes("నీరు") || q.includes("నీటిపారుదల") || q.includes("நீர்") || q.includes("தண்ணீர்")) {
     if (isKannada) {
       return `ಪ್ರಸ್ತುತ ಮಣ್ಣಿನ ತೇವಾಂಶ ${ctx.soilMoisture}% ಇದೆ (ನಿಗದಿತ ಮಿತಿ ${ctx.threshold}%). ಮಳೆ ಸಾಧ್ಯತೆ ${ctx.rainProbability}% ಇರುವುದರಿಂದ ಸಲಹೆ: ${ctx.soilMoisture < ctx.threshold && ctx.rainProbability < 50 ? "4 ಗಂಟೆಗಳ ಒಳಗೆ ಹಗುರವಾಗಿ ನೀರು ಕೊಡಿ." : ctx.rainProbability >= 50 ? "ಮಳೆ ಬರುವ ಸಾಧ್ಯತೆ ಇರುವುದರಿಂದ ಸದ್ಯಕ್ಕೆ ನೀರಾವರಿ ಮುಂದೂಡಿ." : "ತೇವಾಂಶ ಉತ್ತಮವಾಗಿದೆ, ಇಂದು ನೀರು ಬೇಡ."}`;
     }
     if (isHindi) {
       return `वर्तमान मिट्टी की नमी ${ctx.soilMoisture}% है (लक्ष्य ${ctx.threshold}%) और बारिश की संभावना ${ctx.rainProbability}% है। सलाह: ${ctx.recommendation}`;
+    }
+    if (ctx.language === "Telugu") {
+      return `ప్రస్తుత నేల తేమ ${ctx.soilMoisture}% (పరిమితి ${ctx.threshold}%), వర్షం అవకాశం ${ctx.rainProbability}%. సలహా: ${ctx.soilMoisture < ctx.threshold && ctx.rainProbability < 50 ? "4 గంటల్లో తేలికపాటి నీటిపారుదల చేయండి." : ctx.rainProbability >= 50 ? "వర్షం అవకాశం ఉన్నందున ప్రస్తుతానికి నీరు పెట్టడం వాయిదా వేయండి." : "తేమ సరిగ్గా ఉంది, ఈరోజు నీరు అవసరం లేదు."}`;
+    }
+    if (ctx.language === "Tamil") {
+      return `தற்போதைய மண் ஈரப்பதம் ${ctx.soilMoisture}% (வரம்பு ${ctx.threshold}%), மழை வாய்ப்பு ${ctx.rainProbability}%. ஆலோசனை: ${ctx.soilMoisture < ctx.threshold && ctx.rainProbability < 50 ? "4 மணி நேரத்திற்குள் லேசான நீர்ப்பாசனம் செய்யவும்." : ctx.rainProbability >= 50 ? "மழை வாய்ப்பு உள்ளதால் தற்போது நீர்ப்பாசனத்தை ஒத்திவைக்கவும்." : "ஈரப்பதம் நன்றாக உள்ளது, இன்று நீர் தேவையில்லை."}`;
     }
     return `Your ${ctx.crop} soil moisture is ${ctx.soilMoisture}% (threshold ${ctx.threshold}%), with ${ctx.rainProbability}% rain forecast. Advisory: ${ctx.recommendation}`;
   }
@@ -150,6 +156,33 @@ function generateAgronomicAssistantFallback(ctx: AssistantContext): string {
 
   if (isKannada) {
     return `${profile.kannadaName} (${ctx.stage} ಹಂತ): ತೇವಾಂಶ ${ctx.soilMoisture}%, ತಾಪಮಾನ ${ctx.temperature}°C, ಮಳೆ ಸಾಧ್ಯತೆ ${ctx.rainProbability}%. ಪ್ರಸ್ತುತ ಸಲಹೆ: ${ctx.recommendation} ಹೆಚ್ಚಿನ ತಪಾಸಣೆಗಾಗಿ ತಜ್ಞರನ್ನು ಸಂಪರ್ಕಿಸಿ (Ask an agronomist).`;
+  }
+  if (isHindi) {
+    return `${ctx.crop} (${ctx.stage}): मिट्टी की नमी ${ctx.soilMoisture}% (लक्ष्य ${ctx.threshold}%), तापमान ${ctx.temperature}°C, बारिश की संभावना ${ctx.rainProbability}%। सलाह: ${ctx.recommendation}`;
+  }
+  if (ctx.language === "Telugu") {
+    if (q.includes("irrigat") || q.includes("water") || q.includes("నీరు") || q.includes("నీటిపారుదల")) {
+      return `ప్రస్తుత నేల తేమ ${ctx.soilMoisture}% (పరిమితి ${ctx.threshold}%), వర్షం అవకాశం ${ctx.rainProbability}%. సలహా: ${ctx.soilMoisture < ctx.threshold && ctx.rainProbability < 50 ? "4 గంటల్లో తేలికపాటి నీటిపారుదల చేయండి." : ctx.rainProbability >= 50 ? "వర్షం అవకాశం ఉన్నందున ప్రస్తుతానికి నీరు పెట్టడం వాయిదా వేయండి." : "తేమ సరిగ్గా ఉంది, ఈరోజు నీరు అవసరం లేదు."}`;
+    }
+    if (q.includes("yellow") || q.includes("పసుపు") || q.includes("ఆకులు")) {
+      return `${ctx.crop} ఆకులు పసుపు రంగులోకి మారడానికి 3 ప్రధాన కారణాలు: 1) నత్రజని లోపం, 2) అధిక నీటి వల్ల వేరు ఒత్తిడి (తేమ ${ctx.soilMoisture}%), లేదా 3) ఆకు మచ్చ తెగులు. దయచేసి పంట ఫోటో అప్‌లోడ్ చేసి తనిఖీ చేయండి.`;
+    }
+    if (q.includes("price") || q.includes("market") || q.includes("ధర") || q.includes("మార్కెట్")) {
+      return `ప్రస్తుత మండీ సూచన ధర: కోలార్ APMC లో ${profile.crop} సగటు ధర క్వింటాల్‌కు ₹${mandi.modal.toLocaleString("en-IN")} (₹${mandi.min.toLocaleString("en-IN")}–₹${mandi.max.toLocaleString("en-IN")}). రవాణా ఖర్చులతో పోల్చడానికి 'Market Rates' చూడండి.`;
+    }
+    return `${ctx.crop} (${ctx.stage}): నేల తేమ ${ctx.soilMoisture}% (లక్ష్యం ${ctx.threshold}%), ఉష్ణోగ్రత ${ctx.temperature}°C, వర్షం ${ctx.rainProbability}%. సలహా: ${ctx.recommendation}`;
+  }
+  if (ctx.language === "Tamil") {
+    if (q.includes("irrigat") || q.includes("water") || q.includes("நீர்") || q.includes("தண்ணீர்")) {
+      return `தற்போதைய மண் ஈரப்பதம் ${ctx.soilMoisture}% (வரம்பு ${ctx.threshold}%), மழை வாய்ப்பு ${ctx.rainProbability}%. ஆலோசனை: ${ctx.soilMoisture < ctx.threshold && ctx.rainProbability < 50 ? "4 மணி நேரத்திற்குள் லேசான நீர்ப்பாசனம் செய்யவும்." : ctx.rainProbability >= 50 ? "மழை வாய்ப்பு உள்ளதால் தற்போது நீர்ப்பாசனத்தை ஒத்திவைக்கவும்." : "ஈரப்பதம் நன்றாக உள்ளது, இன்று நீர் தேவையில்லை."}`;
+    }
+    if (q.includes("yellow") || q.includes("மஞ்சள்") || q.includes("இலை")) {
+      return `${ctx.crop} இலைகள் மஞ்சளாக மாற 3 முக்கிய காரணங்கள்: 1) நைட்ரஜன் குறைபாடு, 2) அதிக நீரால் வேர் அழுத்தம் (ஈரப்பதம் ${ctx.soilMoisture}%), அல்லது 3) இலைப் புள்ளி நோய். தெளிவான புகைப்படத்தை பதிவேற்றி சரிபார்க்கவும்.`;
+    }
+    if (q.includes("price") || q.includes("market") || q.includes("விலை") || q.includes("சந்தை")) {
+      return `தற்போதைய மண்டி குறிப்பு விலை: கோலார் APMC-யில் ${profile.crop} விலை குவிண்டாலுக்கு ₹${mandi.modal.toLocaleString("en-IN")} (₹${mandi.min.toLocaleString("en-IN")}–₹${mandi.max.toLocaleString("en-IN")}). போக்குவரத்து செலவுடன் ஒப்பிட 'Market Rates' பார்க்கவும்.`;
+    }
+    return `${ctx.crop} (${ctx.stage}): மண் ஈரப்பதம் ${ctx.soilMoisture}% (இலக்கு ${ctx.threshold}%), வெப்பநிலை ${ctx.temperature}°C, மழை ${ctx.rainProbability}%. ஆலோசனை: ${ctx.recommendation}`;
   }
   return `Context for ${ctx.crop} (${ctx.stage}): Moisture is ${ctx.soilMoisture}% (target ${ctx.threshold}%), temperature ${ctx.temperature}°C, ${ctx.rainProbability}% rain chance. ${ctx.recommendation} Feel free to ask about irrigation, leaf yellowing, mandi prices, or crop selection.`;
 }

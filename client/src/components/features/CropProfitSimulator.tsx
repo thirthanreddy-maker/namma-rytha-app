@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRightLeft, Award, BarChart3, CheckCircle2, Droplets, IndianRupee } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, formatDate } from "@/i18n";
 
 type CropRowDraft = {
   crop: string;
@@ -23,6 +25,7 @@ const DEFAULT_CROPS: CropRowDraft[] = [
 ];
 
 export default function CropProfitSimulator() {
+  const { t, i18n } = useTranslation(["market", "common"]);
   const [rows, setRows] = useState<CropRowDraft[]>(DEFAULT_CROPS);
   const [currentCrop, setCurrentCrop] = useState("Tomato");
   const [waterLevel, setWaterLevel] = useState<"Scarce" | "Moderate" | "Abundant">("Moderate");
@@ -74,9 +77,9 @@ export default function CropProfitSimulator() {
       <section className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">CROP SWITCHING RECOMMENDATION ENGINE</span>
-            <h3>Compare 4 crops before sowing</h3>
-            <p>Set your farm&apos;s water supply, capital ceiling, and risk preference to evaluate crop switching.</p>
+            <span className="eyebrow">{t("market:profit.engineEyebrow")}</span>
+            <h3>{t("market:profit.engineTitle")}</h3>
+            <p>{t("market:profit.engineSub")}</p>
           </div>
           <ArrowRightLeft size={20} className="muted-icon" />
         </div>
@@ -89,37 +92,37 @@ export default function CropProfitSimulator() {
               className={scenarioMode === mode ? "active" : ""}
               onClick={() => setScenarioMode(mode)}
             >
-              {mode} {mode === "Conservative" ? "(0.75×)" : mode === "Optimistic" ? "(1.25×)" : "(1.0×)"}
+              {t(`market:profit.scenarios.${mode}`)}
             </button>
           ))}
         </div>
 
         <div className="switch-constraints-grid">
           <label>
-            Current / baseline crop
+            {t("market:profit.currentCrop")}
             <select value={currentCrop} onChange={(e) => setCurrentCrop(e.target.value)}>
-              {rows.map((r) => <option key={r.crop}>{r.crop}</option>)}
+              {rows.map((r) => <option key={r.crop} value={r.crop}>{t(`common:crops.${r.crop}`, { defaultValue: r.crop })}</option>)}
             </select>
           </label>
           <label>
-            Available irrigation water
+            {t("market:profit.waterSupply")}
             <select value={waterLevel} onChange={(e) => setWaterLevel(e.target.value as typeof waterLevel)}>
-              <option value="Scarce">Scarce (Rainfed / limited borewell)</option>
-              <option value="Moderate">Moderate (Standard seasonal)</option>
-              <option value="Abundant">Abundant (Assured drip + tank)</option>
+              <option value="Scarce">{t("market:profit.waterLevels.Scarce")}</option>
+              <option value="Moderate">{t("market:profit.waterLevels.Moderate")}</option>
+              <option value="Abundant">{t("market:profit.waterLevels.Abundant")}</option>
             </select>
           </label>
           <label>
-            Max investment budget (₹)
+            {t("market:profit.maxBudget")}
             <input type="number" min={1000} step={2500} value={maxBudgetInput} onChange={(e) => setMaxBudgetInput(e.target.value)} />
-            {!isValidBudget && <small style={{ color: "var(--amber-strong)", fontWeight: 600 }}>Enter at least ₹1,000 to run comparison</small>}
+            {!isValidBudget && <small style={{ color: "var(--amber-strong)", fontWeight: 600 }}>{t("market:profit.budgetError")}</small>}
           </label>
           <label>
-            Risk appetite
+            {t("market:profit.riskAppetite")}
             <select value={riskAppetite} onChange={(e) => setRiskAppetite(e.target.value as typeof riskAppetite)}>
-              <option value="Conservative">Conservative (Stable yield & low debt)</option>
-              <option value="Balanced">Balanced</option>
-              <option value="High-Return">High-Return (Market-responsive)</option>
+              <option value="Conservative">{t("market:profit.riskLevels.Conservative")}</option>
+              <option value="Balanced">{t("market:profit.riskLevels.Balanced")}</option>
+              <option value="High-Return">{t("market:profit.riskLevels.High-Return")}</option>
             </select>
           </label>
         </div>
@@ -129,8 +132,8 @@ export default function CropProfitSimulator() {
             <div className="switch-rec-badge">
               <Award size={20} />
               <div>
-                <small>TOP RECOMMENDED CROP</small>
-                <strong>{result.topRecommendation.crop} ({result.topRecommendation.kannadaName}) · Fit Score {result.topRecommendation.suitabilityScore}/100</strong>
+                <small>{t("market:profit.topRecommended")}</small>
+                <strong>{t(`common:crops.${result.topRecommendation.crop}`, { defaultValue: result.topRecommendation.crop })} · {t("market:profit.fitScore", { score: result.topRecommendation.suitabilityScore })}</strong>
               </div>
             </div>
             <p>{result.switchingSummary}</p>
@@ -238,7 +241,7 @@ export default function CropProfitSimulator() {
         </div>
         {result && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
-            <small className="data-source-note">Scenario: {scenarioMode} yield multiplier ({yieldMult}×)</small>
+            <small className="data-source-note">{t(`market:profit.scenarios.${scenarioMode}`)} ({yieldMult}×)</small>
             <button
               className="primary-button"
               disabled={savePlanMut.isPending}
@@ -250,7 +253,7 @@ export default function CropProfitSimulator() {
                 roiPct: Math.round(result.topRecommendation.roiPct),
               })}
             >
-              {savePlanMut.isPending ? "Saving…" : "Save top profit plan"}
+              {savePlanMut.isPending ? t("common:saving") : t("market:profit.saveTopPlan")}
             </button>
           </div>
         )}
@@ -260,19 +263,19 @@ export default function CropProfitSimulator() {
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">SAVED SEASONAL PROFIT PLANS</span>
-              <h3>Saved crop profit comparisons</h3>
+              <span className="eyebrow">{t("market:profit.savedPlansEyebrow")}</span>
+              <h3>{t("market:profit.savedPlansTitle")}</h3>
             </div>
           </div>
           <div className="saved-scenarios-list">
             {(savedPlansQuery.data ?? []).map((p: { id: number; crop: string; scenarioMode: string; budgetTotal: number; expectedNetProfit: number; roiPct: number; createdAt: string | Date }) => (
               <div key={p.id} className="saved-scenario-row">
                 <div>
-                  <strong>{p.crop} · {p.scenarioMode}</strong>
-                  <small>Budget ceiling ₹{p.budgetTotal.toLocaleString("en-IN")} · {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                  <strong>{t(`common:crops.${p.crop}`, { defaultValue: p.crop })} · {p.scenarioMode}</strong>
+                  <small>{formatCurrency(p.budgetTotal, i18n.language)} · {formatDate(p.createdAt, i18n.language)}</small>
                 </div>
                 <span className="status-pill green">ROI {p.roiPct}%</span>
-                <b>₹{p.expectedNetProfit.toLocaleString("en-IN")} net</b>
+                <b>{formatCurrency(p.expectedNetProfit, i18n.language)}</b>
               </div>
             ))}
           </div>

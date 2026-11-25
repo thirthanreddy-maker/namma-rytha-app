@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import {
   UsersRound, Plus, Check, RefreshCw, IndianRupee, Package,
   X, ChevronRight, Sparkles
 } from "lucide-react";
+import { formatCurrency } from "@/i18n";
 
 type Props = { onToast: (msg: string) => void };
 
 export default function CooperativeWorkspace({ onToast }: Props) {
+  const { t, i18n } = useTranslation(["farm", "common"]);
   const [showCreateCoop, setShowCreateCoop] = useState(false);
   const [showBulkForm, setShowBulkForm] = useState<number | null>(null);
   const [coopForm, setCoopForm] = useState({ name: "", description: "", district: "Kolar" });
@@ -23,7 +26,7 @@ export default function CooperativeWorkspace({ onToast }: Props) {
     onSuccess: () => {
       void utils.cooperative.list.invalidate();
       void utils.cooperative.myGroups.invalidate();
-      onToast("Cooperative created!");
+      onToast(t("farm:cooperatives.createBtn"));
       setShowCreateCoop(false);
       setCoopForm({ name: "", description: "", district: "Kolar" });
     },
@@ -34,7 +37,7 @@ export default function CooperativeWorkspace({ onToast }: Props) {
     onSuccess: () => {
       void utils.cooperative.myGroups.invalidate();
       void utils.cooperative.list.invalidate();
-      onToast("Joined cooperative!");
+      onToast(t("farm:cooperatives.joinGroup"));
     },
     onError: (e) => onToast(e.message),
   });
@@ -42,7 +45,7 @@ export default function CooperativeWorkspace({ onToast }: Props) {
   const bulkMut = trpc.cooperative.bulkPurchase.create.useMutation({
     onSuccess: () => {
       void utils.cooperative.bulkPurchase.list.invalidate();
-      onToast("Bulk purchase request submitted.");
+      onToast(t("farm:cooperatives.submitBulk"));
       setShowBulkForm(null);
       setBulkForm({ itemName: "", quantityKg: "", unitPrice: "", preferredVendor: "" });
     },
@@ -51,7 +54,6 @@ export default function CooperativeWorkspace({ onToast }: Props) {
 
   const myGroupIds = new Set((myGroupsQuery.data ?? []).map((g: { coopId: number }) => g.coopId));
 
-  // Deterministic savings calculator (10% group discount assumption)
   const qty = Number(savingsCalc.qty);
   const unitPrice = Number(savingsCalc.unitPrice);
   const groupPrice = unitPrice * 0.90;
@@ -61,90 +63,88 @@ export default function CooperativeWorkspace({ onToast }: Props) {
 
   return (
     <div className="cooperative-workspace">
-      {/* Savings Calculator */}
       <div className="panel coop-calculator">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">SAVINGS ESTIMATOR</span>
-            <h3>How much can your group save?</h3>
+            <span className="eyebrow">{t("farm:cooperatives.calcEyebrow")}</span>
+            <h3>{t("farm:cooperatives.calcTitle")}</h3>
           </div>
           <Sparkles size={20} className="muted-icon" />
         </div>
-        <p className="coop-calc-note">Group buying typically reduces input costs by 10–15% through bulk discounts. <em>Assumption: 10% discount.</em></p>
+        <p className="coop-calc-note">{t("farm:cooperatives.calcNote")}</p>
         <div className="coop-calc-grid">
-          <label>Quantity (kg)
+          <label>{t("farm:cooperatives.quantityKg")}
             <input type="number" min="0" value={savingsCalc.qty}
               onChange={e => setSavingsCalc(s => ({ ...s, qty: e.target.value }))}
-              placeholder="e.g. 500" />
+              placeholder="500" />
           </label>
-          <label>Unit price (₹/kg)
+          <label>{t("farm:cooperatives.unitPrice")}
             <input type="number" min="0" step="0.5" value={savingsCalc.unitPrice}
               onChange={e => setSavingsCalc(s => ({ ...s, unitPrice: e.target.value }))}
-              placeholder="e.g. 45" />
+              placeholder="45" />
           </label>
         </div>
         {savings > 0 && (
           <div className="coop-savings-result">
             <div className="savings-row">
-              <span>Individual cost</span><strong>₹{(qty * unitPrice).toLocaleString("en-IN")}</strong>
+              <span>{t("farm:cooperatives.individualCost")}</span><strong>{formatCurrency(qty * unitPrice, i18n.language)}</strong>
             </div>
             <div className="savings-row">
-              <span>Group cost (10% off)</span><strong>₹{(qty * groupPrice).toLocaleString("en-IN")}</strong>
+              <span>{t("farm:cooperatives.groupCost")}</span><strong>{formatCurrency(qty * groupPrice, i18n.language)}</strong>
             </div>
             <div className="savings-row highlight">
-              <span><IndianRupee size={14} /> Estimated savings</span>
-              <strong className="positive">₹{savings.toLocaleString("en-IN")}</strong>
+              <span><IndianRupee size={14} /> {t("farm:cooperatives.estSavings")}</span>
+              <strong className="positive">{formatCurrency(savings, i18n.language)}</strong>
             </div>
-            <small className="data-source-note">Actual savings depend on vendor negotiation and group size. Assumption: 10% bulk discount.</small>
+            <small className="data-source-note">{t("farm:cooperatives.calcDisclaimer")}</small>
           </div>
         )}
       </div>
 
-      {/* Create cooperative */}
       <div className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">FARMER GROUPS</span>
-            <h3>Cooperatives in your area</h3>
+            <span className="eyebrow">{t("farm:cooperatives.groupsEyebrow")}</span>
+            <h3>{t("farm:cooperatives.groupsTitle")}</h3>
           </div>
           <button className="secondary-button" onClick={() => setShowCreateCoop(!showCreateCoop)}>
-            <Plus size={14} /> Create group
+            <Plus size={14} /> {t("farm:cooperatives.createGroup")}
           </button>
         </div>
 
         {showCreateCoop && (
           <div className="coop-create-form">
             <div className="fm-form-grid">
-              <label>Group name
-                <input value={coopForm.name} onChange={e => setCoopForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Kolar Tomato Growers" />
+              <label>{t("farm:cooperatives.groupName")}
+                <input value={coopForm.name} onChange={e => setCoopForm(f => ({ ...f, name: e.target.value }))} placeholder={t("farm:cooperatives.groupPlaceholder")} />
               </label>
-              <label>District
+              <label>{t("farm:cooperatives.district")}
                 <select value={coopForm.district} onChange={e => setCoopForm(f => ({ ...f, district: e.target.value }))}>
                   {DISTRICTS.map(d => <option key={d}>{d}</option>)}
                 </select>
               </label>
-              <label className="fm-notes">Description
+              <label className="fm-notes">{t("farm:cooperatives.description")}
                 <textarea rows={2} value={coopForm.description}
                   onChange={e => setCoopForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="What does this group focus on?" />
+                  placeholder={t("farm:cooperatives.descPlaceholder")} />
               </label>
             </div>
             <div className="fm-form-actions">
               <button className="primary-button" disabled={createMut.isPending || !coopForm.name.trim()} onClick={() => createMut.mutate(coopForm)}>
-                <Check size={14} /> Create cooperative
+                <Check size={14} /> {t("farm:cooperatives.createBtn")}
               </button>
-              <button className="secondary-button" onClick={() => setShowCreateCoop(false)}>Cancel</button>
+              <button className="secondary-button" onClick={() => setShowCreateCoop(false)}>{t("common:cancel")}</button>
             </div>
           </div>
         )}
 
         {listQuery.isLoading ? (
-          <div className="feature-empty"><RefreshCw size={18} className="spin" /><span>Loading groups…</span></div>
+          <div className="feature-empty"><RefreshCw size={18} className="spin" /><span>{t("farm:cooperatives.loading")}</span></div>
         ) : (listQuery.data ?? []).length === 0 ? (
           <div className="feature-empty">
             <UsersRound size={24} />
-            <strong>No cooperatives yet</strong>
-            <span>Create the first farmer group in your area.</span>
+            <strong>{t("farm:cooperatives.emptyTitle")}</strong>
+            <span>{t("farm:cooperatives.emptyDesc")}</span>
           </div>
         ) : (
           <div className="coop-list">
@@ -156,21 +156,21 @@ export default function CooperativeWorkspace({ onToast }: Props) {
                     <div className="coop-avatar"><UsersRound size={18} /></div>
                     <div>
                       <strong>{coop.name}</strong>
-                      <small>{coop.district} · {coop.memberCount} member{coop.memberCount !== 1 ? "s" : ""}</small>
+                      <small>{coop.district} · {t("farm:cooperatives.members", { count: coop.memberCount })}</small>
                       {coop.description && <p>{coop.description}</p>}
                     </div>
                   </div>
                   <div className="coop-card-right">
                     {isMember ? (
-                      <span className="coop-member-badge"><Check size={12} /> Member</span>
+                      <span className="coop-member-badge"><Check size={12} /> {t("farm:cooperatives.memberBadge")}</span>
                     ) : (
                       <button className="primary-button" disabled={joinMut.isPending} onClick={() => joinMut.mutate({ coopId: coop.id })}>
-                        Join group <ChevronRight size={13} />
+                        {t("farm:cooperatives.joinGroup")} <ChevronRight size={13} />
                       </button>
                     )}
                     {isMember && (
                       <button className="secondary-button" onClick={() => setShowBulkForm(coop.id)}>
-                        <Package size={13} /> Bulk request
+                        <Package size={13} /> {t("farm:cooperatives.bulkRequest")}
                       </button>
                     )}
                   </div>
@@ -181,28 +181,27 @@ export default function CooperativeWorkspace({ onToast }: Props) {
         )}
       </div>
 
-      {/* Bulk purchase form */}
       {showBulkForm !== null && (
         <div className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">BULK PURCHASE REQUEST</span>
-              <h3>Pool your buying power</h3>
+              <span className="eyebrow">{t("farm:cooperatives.bulkEyebrow")}</span>
+              <h3>{t("farm:cooperatives.bulkTitle")}</h3>
             </div>
-            <button className="icon-button" onClick={() => setShowBulkForm(null)}><X size={17} /></button>
+            <button className="icon-button" onClick={() => setShowBulkForm(null)} aria-label={t("common:close")}><X size={17} /></button>
           </div>
           <div className="fm-form-grid">
-            <label>Item name
-              <input value={bulkForm.itemName} onChange={e => setBulkForm(f => ({ ...f, itemName: e.target.value }))} placeholder="e.g. NPK Fertilizer (50kg bags)" />
+            <label>{t("farm:cooperatives.itemName")}
+              <input value={bulkForm.itemName} onChange={e => setBulkForm(f => ({ ...f, itemName: e.target.value }))} placeholder={t("farm:cooperatives.itemPlaceholder")} />
             </label>
-            <label>Quantity (kg)
-              <input type="number" min="1" value={bulkForm.quantityKg} onChange={e => setBulkForm(f => ({ ...f, quantityKg: e.target.value }))} placeholder="e.g. 1000" />
+            <label>{t("farm:cooperatives.quantityKg")}
+              <input type="number" min="1" value={bulkForm.quantityKg} onChange={e => setBulkForm(f => ({ ...f, quantityKg: e.target.value }))} placeholder="1000" />
             </label>
-            <label>Target unit price (₹/kg)
-              <input type="number" min="0" value={bulkForm.unitPrice} onChange={e => setBulkForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="e.g. 38" />
+            <label>{t("farm:cooperatives.targetPrice")}
+              <input type="number" min="0" value={bulkForm.unitPrice} onChange={e => setBulkForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="38" />
             </label>
-            <label>Preferred vendor (optional)
-              <input value={bulkForm.preferredVendor} onChange={e => setBulkForm(f => ({ ...f, preferredVendor: e.target.value }))} placeholder="Vendor name or any" />
+            <label>{t("farm:cooperatives.preferredVendor")}
+              <input value={bulkForm.preferredVendor} onChange={e => setBulkForm(f => ({ ...f, preferredVendor: e.target.value }))} placeholder={t("farm:cooperatives.vendorPlaceholder")} />
             </label>
           </div>
           <div className="fm-form-actions">
@@ -211,18 +210,17 @@ export default function CooperativeWorkspace({ onToast }: Props) {
               disabled={bulkMut.isPending || !bulkForm.itemName.trim() || !bulkForm.quantityKg}
               onClick={() => bulkMut.mutate({ coopId: showBulkForm, itemName: bulkForm.itemName, quantityKg: Number(bulkForm.quantityKg), unitPrice: Number(bulkForm.unitPrice) || 0, preferredVendor: bulkForm.preferredVendor || null })}
             >
-              <Check size={14} /> Submit bulk request
+              <Check size={14} /> {t("farm:cooperatives.submitBulk")}
             </button>
-            <button className="secondary-button" onClick={() => setShowBulkForm(null)}>Cancel</button>
+            <button className="secondary-button" onClick={() => setShowBulkForm(null)}>{t("common:cancel")}</button>
           </div>
         </div>
       )}
 
-      {/* Bulk purchase list */}
       {(bulkListQuery.data ?? []).length > 0 && (
         <div className="panel">
           <div className="panel-title">
-            <div><span className="eyebrow">ACTIVE BULK REQUESTS</span><h3>Group purchase orders</h3></div>
+            <div><span className="eyebrow">{t("farm:cooperatives.activeBulkEyebrow")}</span><h3>{t("farm:cooperatives.activeBulkTitle")}</h3></div>
           </div>
           <div className="coop-bulk-list">
             {(bulkListQuery.data ?? []).map((req: { id: number; itemName: string; quantityKg: number; unitPrice: number; status: string; preferredVendor: string | null }) => (
@@ -230,8 +228,8 @@ export default function CooperativeWorkspace({ onToast }: Props) {
                 <Package size={15} />
                 <div>
                   <strong>{req.itemName}</strong>
-                  <small>{req.quantityKg} kg · ₹{req.unitPrice}/kg · <span className={`coop-status ${req.status}`}>{req.status}</span></small>
-                  {req.preferredVendor && <small>Preferred: {req.preferredVendor}</small>}
+                  <small>{req.quantityKg} {t("common:kg")} · {formatCurrency(req.unitPrice, i18n.language)}/{t("common:kg")} · <span className={`coop-status ${req.status}`}>{req.status}</span></small>
+                  {req.preferredVendor && <small>{req.preferredVendor}</small>}
                 </div>
               </div>
             ))}

@@ -1,0 +1,49 @@
+{
+  "analytics": {
+    "pageEyebrow": "खेत विश्लेषण",
+    "pageTitle": "देखें कि आपके खेत में क्या बदल रहा है।",
+    "pageDescription": "हर निर्णय को मापने के लिए काम की पूर्णता, फसल मूल्य और मिट्टी के रुझान एक साथ देखें।",
+    "tasksCompleted": "पूर्ण हुए काम",
+    "thisWeek": "इस सप्ताह",
+    "trackedExpenses": "दर्ज खर्च",
+    "acrossAllPlots": "सभी प्लॉट में",
+    "cropValueTrend": "फसल मूल्य रुझान",
+    "vsLastWeek": "पिछले सप्ताह की तुलना में",
+    "chartTitle": "खेत प्रदर्शन · पिछले 7 दिन",
+    "recommendedFocus": "अनुशंसित फोकस",
+    "focusSub": "अगले खेत दौरे की योजना बनाने के लिए इन संकेतों का उपयोग करें।",
+    "bestAction": "सर्वोत्तम कदम",
+    "finishIrrigation": "सिंचाई के काम पूरे करें",
+    "strongestCrop": "सबसे मजबूत फसल",
+    "nextReview": "अगली समीक्षा",
+    "tomorrowMorning": "कल सुबह"
+  },
+  "admin": {
+    "pageEyebrow": "एडमिन कंसोल",
+    "pageTitle": "एडमिन अंतर्दृष्टि",
+    "loading": "प्लेटफ़ॉर्म अंतर्दृष्टि लोड हो रही है…",
+    "restrictedTitle": "एडमिन प्रवेश आवश्यक",
+    "restrictedDesc": "यह डैशबोर्ड सर्वर-साइड भूमिका सुरक्षा द्वारा संरक्षित है।",
+    "opsEyebrow": "प्लेटफ़ॉर्म संचालन",
+    "opsTitle": "देखें कि नम्मा रैता खेतों की कैसे मदद कर रहा है।",
+    "opsDesc": "प्रशासकों के लिए समग्र प्लेटफ़ॉर्म संकेत।",
+    "adminOnly": "केवल एडमिन",
+    "registeredFarmers": "पंजीकृत किसान",
+    "activePlots": "सक्रिय प्लॉट",
+    "sensorReadings": "सेंसर रीडिंग",
+    "pendingCases": "लंबित विशेषज्ञ मामले",
+    "liveFromDb": "डेटाबेस से लाइव",
+    "privacyTitle": "गोपनीयता-जागरूक विश्लेषण",
+    "privacyDesc": "यहाँ केवल समग्र संख्याएं दिखाई जाती हैं।"
+  },
+  "printable": {
+    "eyebrow": "सिंचाई सिफारिश रिपोर्ट",
+    "generated": "तैयार समय: {{date}}",
+    "cropStage": "फसल / अवस्था",
+    "soilMoisture": "मिट्टी की नमी",
+    "triggerThreshold": "ट्रिगर सीमा",
+    "weather": "मौसम",
+    "rain": "बारिश",
+    "footnote": "मौसम स्रोत: Open-Meteo लाइव पूर्वानुमान। सिंचाई से पहले प्लॉट की जांच करें।"
+  }
+}

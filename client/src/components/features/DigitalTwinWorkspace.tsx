@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Activity, AlertTriangle, CheckCircle2, Droplets, Gauge, IndianRupee, Plus, RefreshCw, Save, Sliders, Sprout, TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, formatDate } from "@/i18n";
 
 type Props = {
   lat: number;
@@ -13,6 +15,7 @@ type Props = {
 const CROP_OPTIONS = ["Tomato", "Ragi", "Maize", "Chilli", "Onion", "Groundnut"];
 
 export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot }: Props) {
+  const { t, i18n } = useTranslation(["farm", "common"]);
   const overviewInput = useMemo(() => ({ lat, lng }), [lat, lng]);
   const overviewQuery = trpc.digitalTwin.overview.useQuery(overviewInput, { refetchOnWindowFocus: false });
   const utils = trpc.useUtils();
@@ -81,7 +84,7 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
     return (
       <div className="panel rytha-loading-card">
         <RefreshCw className="spin" size={20} />
-        <strong>Syncing your farm Digital Twin telemetry…</strong>
+        <strong>{t("farm:digitalTwin.syncing")}</strong>
       </div>
     );
   }
@@ -91,12 +94,12 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
       <div className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">VIRTUAL FARM PLOTS · LIVE TELEMETRY</span>
-            <h3>Registered agricultural plots ({plots.length})</h3>
-            <p>Select any plot below to inspect its virtual crop, soil, water, and production twin.</p>
+            <span className="eyebrow">{t("farm:digitalTwin.eyebrow")}</span>
+            <h3>{t("farm:digitalTwin.registeredPlots", { count: plots.length })}</h3>
+            <p>{t("farm:digitalTwin.selectPlotHint")}</p>
           </div>
           <button className="secondary-button" onClick={onOpenAddPlot}>
-            <Plus size={15} /> Register plot
+            <Plus size={15} /> {t("farm:digitalTwin.registerPlot")}
           </button>
         </div>
 
@@ -116,24 +119,24 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
                 <div className="twin-plot-head">
                   <strong>{plot.name}</strong>
                   <span className={`status-pill ${plot.healthScore >= 75 ? "green" : "amber"}`}>
-                    Health {plot.healthScore}/100
+                    {t("farm:digitalTwin.healthLabel", { score: plot.healthScore })}
                   </span>
                 </div>
                 <div className="twin-plot-meta">
-                  <span><Sprout size={13} /> {plot.crop} · {plot.growthStage}</span>
-                  <span>{plot.areaAcres} acres · {plot.soilType}</span>
+                  <span><Sprout size={13} /> {t(`common:crops.${plot.crop}`, { defaultValue: plot.crop })} · {plot.growthStage}</span>
+                  <span>{plot.areaAcres} {t("common:acres")} · {plot.soilType}</span>
                 </div>
                 <div className="twin-plot-kpis">
                   <div>
-                    <small>MOISTURE</small>
+                    <small>{t("farm:digitalTwin.moisture")}</small>
                     <b>{plot.moisturePct}%</b>
                   </div>
                   <div>
-                    <small>DAILY WATER REQ</small>
-                    <b>{(plot.dailyWaterReqLiters / 1000).toFixed(1)}k L</b>
+                    <small>{t("farm:digitalTwin.seasonWater")}</small>
+                    <b>{(plot.dailyWaterReqLiters / 1000).toFixed(1)}k {t("common:liters")}</b>
                   </div>
                   <div>
-                    <small>EST. YIELD</small>
+                    <small>{t("farm:digitalTwin.estYield")}</small>
                     <b>{plot.estimatedProductionQ} q</b>
                   </div>
                 </div>
@@ -149,55 +152,55 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
           <section className="panel">
             <div className="panel-title">
               <div>
-                <span className="eyebrow">WHAT-IF SIMULATOR · {activePlot.name.toUpperCase()}</span>
-                <h3>Stress-test farm decisions</h3>
-                <p>Adjust weather, costs, crop switching, and harvest timing to forecast impact.</p>
+                <span className="eyebrow">{t("farm:digitalTwin.whatIfEyebrow")} · {activePlot.name.toUpperCase()}</span>
+                <h3>{t("farm:digitalTwin.simulatingFor", { plot: activePlot.name })}</h3>
+                <p>{t("farm:digitalTwin.pageDescription")}</p>
               </div>
               <Sliders size={20} className="muted-icon" />
             </div>
 
             <div className="preset-pill-row">
-              <button type="button" className="tiny-pill" onClick={() => applyPreset("Drought Stress (-45% Rain)", -45, 0, 25, 0, "")}>
-                Drought stress (−45% rain)
+              <button type="button" className="tiny-pill" onClick={() => applyPreset(t("farm:digitalTwin.presets.drought"), -45, 0, 25, 0, "")}>
+                {t("farm:digitalTwin.presets.drought")}
               </button>
-              <button type="button" className="tiny-pill" onClick={() => applyPreset("Fertilizer Cost Spike (+35%)", 0, 35, 0, 0, "")}>
-                Fertilizer spike (+35%)
+              <button type="button" className="tiny-pill" onClick={() => applyPreset(t("farm:digitalTwin.presets.fertSpike"), 0, 35, 0, 0, "")}>
+                {t("farm:digitalTwin.presets.fertSpike")}
               </button>
-              <button type="button" className="tiny-pill" onClick={() => applyPreset("Switch to Ragi Resilience", -40, 0, 30, 0, "Ragi")}>
-                Switch to Ragi
+              <button type="button" className="tiny-pill" onClick={() => applyPreset(t("farm:digitalTwin.presets.switchRagi"), -40, 0, 30, 0, "Ragi")}>
+                {t("farm:digitalTwin.presets.switchRagi")}
               </button>
               <button type="button" className="tiny-pill" onClick={() => applyPreset("Baseline", 0, 0, 0, 0, "")}>
-                Reset baseline
+                {t("common:refresh")}
               </button>
             </div>
 
             <div className="sim-controls-grid">
               <label className="sim-slider">
-                <div><span>Rainfall change</span><b>{rainfallDeltaPct > 0 ? `+${rainfallDeltaPct}%` : `${rainfallDeltaPct}%`}</b></div>
+                <div><span>{t("farm:digitalTwin.rainfallDelta")}</span><b>{rainfallDeltaPct > 0 ? `+${rainfallDeltaPct}%` : `${rainfallDeltaPct}%`}</b></div>
                 <input type="range" min={-80} max={60} step={5} value={rainfallDeltaPct} onChange={(e) => setRainfallDeltaPct(Number(e.target.value))} />
               </label>
 
               <label className="sim-slider">
-                <div><span>Fertilizer cost change</span><b>+{fertilizerCostDeltaPct}%</b></div>
+                <div><span>{t("farm:digitalTwin.fertCostDelta")}</span><b>+{fertilizerCostDeltaPct}%</b></div>
                 <input type="range" min={0} max={100} step={5} value={fertilizerCostDeltaPct} onChange={(e) => setFertilizerCostDeltaPct(Number(e.target.value))} />
               </label>
 
               <label className="sim-slider">
-                <div><span>Irrigation reduction</span><b>−{irrigationReductionPct}%</b></div>
+                <div><span>{t("farm:digitalTwin.irrigationRed")}</span><b>−{irrigationReductionPct}%</b></div>
                 <input type="range" min={0} max={60} step={5} value={irrigationReductionPct} onChange={(e) => setIrrigationReductionPct(Number(e.target.value))} />
               </label>
 
               <label className="sim-slider">
-                <div><span>Delayed harvesting</span><b>+{harvestDelayDays} days</b></div>
+                <div><span>{t("farm:digitalTwin.harvestDelay")}</span><b>+{harvestDelayDays} {t("common:days")}</b></div>
                 <input type="range" min={0} max={21} step={1} value={harvestDelayDays} onChange={(e) => setHarvestDelayDays(Number(e.target.value))} />
               </label>
 
               <label className="sim-select">
-                <span>Crop switching simulation</span>
+                <span>{t("farm:digitalTwin.switchCrop")}</span>
                 <select value={switchToCrop || activePlot.crop} onChange={(e) => setSwitchToCrop(e.target.value)}>
                   {CROP_OPTIONS.map((crop) => (
                     <option key={crop} value={crop}>
-                      {crop}{crop === activePlot.crop ? " (Current crop)" : ""}
+                      {t(`common:crops.${crop}`, { defaultValue: crop })}{crop === activePlot.crop ? ` (${t("farm:digitalTwin.keepCurrent", { crop: "" }).trim()})` : ""}
                     </option>
                   ))}
                 </select>
@@ -208,7 +211,7 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
               <input
                 value={scenarioName}
                 onChange={(e) => setScenarioName(e.target.value)}
-                placeholder="Scenario name (e.g. Dry Rabi Plan)"
+                placeholder={t("farm:digitalTwin.scenarioPlaceholder")}
                 maxLength={120}
               />
               <button
@@ -225,7 +228,7 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
                   });
                 }}
               >
-                <Save size={14} /> {saveMutation.isPending ? "Saving…" : "Save scenario"}
+                <Save size={14} /> {saveMutation.isPending ? t("common:saving") : t("farm:digitalTwin.saveScenario")}
               </button>
             </div>
           </section>
@@ -233,9 +236,9 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
           <section className="panel">
             <div className="panel-title">
               <div>
-                <span className="eyebrow">SIMULATION OUTCOME</span>
-                <h3>Baseline vs. Simulated twin</h3>
-                <p>Transparent agronomic projection based on {activePlot.areaAcres} acres.</p>
+                <span className="eyebrow">{t("farm:digitalTwin.impactEyebrow")}</span>
+                <h3>{t("farm:digitalTwin.vsBaseline")}</h3>
+                <p>{activePlot.areaAcres} {t("common:acres")}</p>
               </div>
               <Activity size={20} className="muted-icon" />
             </div>
@@ -244,14 +247,14 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
               <>
                 <div className="sim-kpi-grid">
                   <div className="sim-kpi">
-                    <small>NET PROFIT</small>
-                    <strong>₹{sim.simulated.netProfit.toLocaleString("en-IN")}</strong>
+                    <small>{t("farm:digitalTwin.netProfit")}</small>
+                    <strong>{formatCurrency(sim.simulated.netProfit, i18n.language)}</strong>
                     <span className={sim.deltas.profitDiff >= 0 ? "positive" : "negative"}>
-                      {sim.deltas.profitDiff >= 0 ? "+" : ""}₹{sim.deltas.profitDiff.toLocaleString("en-IN")} vs base
+                      {sim.deltas.profitDiff >= 0 ? "+" : ""}{formatCurrency(sim.deltas.profitDiff, i18n.language)} {t("farm:digitalTwin.vsBaseline")}
                     </span>
                   </div>
                   <div className="sim-kpi">
-                    <small>EST. PRODUCTION</small>
+                    <small>{t("farm:digitalTwin.production")}</small>
                     <strong>{sim.simulated.productionQuintals} q</strong>
                     <span className={sim.deltas.productionDiffQ >= 0 ? "positive" : "negative"}>
                       {sim.deltas.productionDiffQ >= 0 ? "+" : ""}{sim.deltas.productionDiffQ} q
@@ -316,9 +319,9 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
         <section className="panel">
           <div className="panel-title">
             <div>
-              <span className="eyebrow">SAVED WHAT-IF SCENARIOS &amp; ACTUAL VS PREDICTED</span>
-              <h3>Scenario timeline &amp; seasonal performance</h3>
-              <p>Compare saved simulation predictions against actual plot outcomes. Simulation confidence is rule-based agronomic estimation.</p>
+              <span className="eyebrow">{t("farm:digitalTwin.savedTitle")}</span>
+              <h3>{t("farm:digitalTwin.savedSub")}</h3>
+              <p>{t("farm:digitalTwin.savedNote")}</p>
             </div>
             <TrendingUp size={19} className="muted-icon" />
           </div>
@@ -332,10 +335,10 @@ export default function DigitalTwinWorkspace({ lat, lng, onToast, onOpenAddPlot 
                 <div key={s.id} className="saved-scenario-row">
                   <div>
                     <strong>{s.scenarioName}</strong>
-                    <small>{s.plotName} · {res.simulated?.crop ?? s.baseCrop} · Saved {new Date(s.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
+                    <small>{s.plotName} · {res.simulated?.crop ?? s.baseCrop} · {formatDate(s.createdAt, i18n.language)}</small>
                   </div>
-                  <span>{simQ || "—"} q ({deltaQ >= 0 ? "+" : ""}{deltaQ} q vs baseline)</span>
-                  <b>₹{(res.simulated?.netProfit ?? 0).toLocaleString("en-IN")} net</b>
+                  <span>{simQ || "—"} q ({deltaQ >= 0 ? "+" : ""}{deltaQ} q {t("farm:digitalTwin.vsBaselineQ")})</span>
+                  <b>{formatCurrency(res.simulated?.netProfit ?? 0, i18n.language)}</b>
                 </div>
               );
             })}
