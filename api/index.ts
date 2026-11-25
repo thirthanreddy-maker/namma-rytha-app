@@ -286,9 +286,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  // 5. Batch query handler for tRPC client GET calls
-  const queryKeys = url.split("?")[0].replace("/api/trpc/", "").split(",");
-  const results = queryKeys.map((key) => {
+  // 5. Query handler for tRPC client GET calls (batch or single)
+  const isBatch = url.includes("batch=1") || url.includes(",");
+  const queryKeys = url.split("?")[0].replace("/api/trpc/", "").split(",").filter(Boolean);
+  const results = (queryKeys.length > 0 ? queryKeys : ["default"]).map((key) => {
     return {
       result: {
         data: {
@@ -299,5 +300,5 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   });
 
   res.statusCode = 200;
-  res.end(JSON.stringify(results));
+  res.end(JSON.stringify(isBatch ? results : results[0]));
 }

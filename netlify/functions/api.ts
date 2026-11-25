@@ -259,10 +259,11 @@ export const handler = async (event: any) => {
     };
   }
 
-  // 5. Batch GET Queries for tRPC client
+  // 5. Query handler for tRPC client (batch or single)
+  const isBatch = event.queryStringParameters?.batch === "1" || path.includes(",");
   const queryStr = path.split("?")[0].replace(/^.*\/api\/trpc\//, "").replace(/^.*\/\.netlify\/functions\/api\//, "");
-  const queryKeys = queryStr.split(",");
-  const results = queryKeys.map((key) => ({
+  const queryKeys = queryStr.split(",").filter(Boolean);
+  const results = (queryKeys.length > 0 ? queryKeys : ["default"]).map((key) => ({
     result: {
       data: {
         json: getMockResponseForKey(key),
@@ -273,6 +274,6 @@ export const handler = async (event: any) => {
   return {
     statusCode: 200,
     headers: defaultHeaders,
-    body: JSON.stringify(results),
+    body: JSON.stringify(isBatch ? results : results[0]),
   };
 };
