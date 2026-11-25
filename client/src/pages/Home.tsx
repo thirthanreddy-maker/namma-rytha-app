@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Activity,
@@ -1093,4 +1094,39 @@ function DiagnosisModal({ image, setImage, setVisualHints, loading, status, sele
   return <Modal title={loading ? t("crop:diagnose.modalLoadingTitle") : t("crop:diagnose.modalStartTitle")} onClose={onClose}><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => handleFile(event.target.files?.[0])} />{loading ? <div className="analysis-progress"><div className="analysis-orbit"><ScanLine size={28} /></div><strong>{status}</strong><span>{t("crop:diagnose.keepOpen")}</span><div className="progress-track"><span /></div><small>{t("crop:diagnose.usuallyTakes")}</small></div> : <><button className={`modal-upload ${image ? "has-image" : ""}`} onClick={() => fileInput.current?.click()}><Camera size={24} /><strong>{image ? t("crop:diagnose.photoReady") : t("crop:diagnose.chooseClearPhoto")}</strong><span>{fileName || t("crop:diagnose.naturalLight")}</span><span className="modal-upload-action"><Upload size={16} /> {image ? t("crop:diagnose.chooseAnotherBtn") : t("crop:diagnose.choosePhotoBtn")}</span></button><label>{t("crop:diagnose.cropPlot")}<select value={plotName} onChange={(event) => setPlotName(event.target.value)}>{plotOptions.map((plot) => <option key={plot}>{plot}</option>)}</select></label><label>{t("common:crop")}<select value={crop} onChange={(event) => setCrop(event.target.value)}><option value="Tomato">{t("common:crops.Tomato")}</option><option value="Ragi">{t("common:crops.Ragi")}</option><option value="Maize">{t("common:crops.Maize")}</option><option value="Chilli">{t("common:crops.Chilli")}</option></select></label><label>{t("crop:diagnose.whatNotice")}<textarea value={symptoms} onChange={(event) => setSymptoms(event.target.value)} placeholder={t("crop:diagnose.symptomsPlaceholder")} rows={3} /></label><label>{t("crop:diagnose.resultLanguage")}<select value={language} onChange={(event) => setLanguage(event.target.value as typeof language)}><option value="English">English</option><option value="Kannada">ಕನ್ನಡ</option><option value="Hindi">हिन्दी</option><option value="Telugu">తెలుగు</option><option value="Tamil">தமிழ்</option></select></label><button className="primary-button full-width" disabled={!image} onClick={() => onSubmit(crop, plotName, symptoms, language)}>{t("crop:diagnose.sendForCheck")} <ScanLine size={16} /></button><small className="modal-note"><ShieldCheck size={13} /> {t("crop:diagnose.disclaimerNote")}</small></>}</Modal>;
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="modal-backdrop" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-header"><h3>{title}</h3><button onClick={onClose} aria-label="Close"><X size={19} /></button></div>{children}</div></div>; }
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  const content = (
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <X size={19} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : content;
+}

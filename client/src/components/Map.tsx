@@ -196,6 +196,6 @@ export function MapView({
   }, [init]);
 
   return (
-    <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />
+    <div ref={mapContainer} className={cn("relative isolate z-0 w-full h-full min-h-[280px] overflow-hidden", className)} />
   );
 }
