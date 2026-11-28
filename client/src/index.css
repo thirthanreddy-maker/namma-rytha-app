@@ -535,6 +535,8 @@ html, body, button, input, select, textarea, .landing-page, .auth-page, .app-she
 .dark .community-tabs, .dark .community-kind-toggle { background: var(--bg-secondary); }
 .dark .community-tabs button, .dark .community-kind-toggle button { color: var(--muted-foreground); }
 .dark .community-tabs button.active, .dark .community-kind-toggle button.active { background: var(--card-elevated); color: var(--highlight); }
+.dark .community-empty, .dark .history-empty, .dark .advanced-empty, .dark .feature-empty { background: var(--card); border-color: var(--border); color: var(--muted-foreground); }
+.dark .community-empty strong, .dark .history-empty strong, .dark .advanced-empty strong { color: var(--foreground); }
 .dark .app-loading { color: var(--primary); }
 .dark .loading-mark { color: #081711; background: var(--accent-green); }
 @media (max-width: 640px) { .dark .landing-links { background: var(--card); } }
@@ -635,8 +637,12 @@ body { overflow-x: hidden; overflow-y: auto; }
   .sidebar-scroll-hint::before { content: ''; width: 3px; height: 16px; border-radius: 99px; background: linear-gradient(#a9d8b1 0 42%, rgba(169, 216, 177, .22) 42% 100%); }
 }
 @media (max-width: 640px) {
-  .topbar { height: 62px; padding: 0 14px; }
-  .topbar-actions { gap: 8px; }
+  .topbar { height: 62px; padding: 0 12px; }
+  .topbar-actions { gap: 6px; }
+  .mobile-brand { margin-left: 8px; gap: 6px; font-size: 12px; white-space: nowrap; }
+  .topbar-actions .theme-toggle.compact { min-width: 32px; width: 32px; padding: 0; gap: 0; }
+  .topbar-actions .theme-toggle.compact .theme-toggle-track, .topbar-actions .theme-toggle.compact .theme-toggle-label { display: none; }
+  .topbar-actions .language-switcher.compact { max-width: 102px; padding: 0 6px; font-size: 11px; }
   .language-button { font-size: 0; gap: 0; padding: 6px; }
   .language-button svg { width: 17px; height: 17px; }
   .page-content { padding: 18px 14px 48px; }
