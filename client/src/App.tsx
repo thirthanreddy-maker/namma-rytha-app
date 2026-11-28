@@ -43,5 +43,5 @@ function Router() {
   return <Suspense fallback={<RouteLoading />}><Switch><Route path="/" component={Landing} /><Route path="/auth" component={Auth} /><Route path="/app" component={ProtectedHome} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch></Suspense>;
 }
 
-function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark" switchable><TooltipProvider><LanguageSync /><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+function App() { return <ErrorBoundary><ThemeProvider defaultTheme="dark" switchable><TooltipProvider><div className="rytha-global-backdrop" aria-hidden="true" /><LanguageSync /><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
 export default App;

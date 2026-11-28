@@ -161,43 +161,15 @@ export default function Auth() {
             </button>
           </form>
 
-          <div style={{ margin: "20px 0 16px", textAlign: "center", position: "relative" }}>
-            <hr style={{ border: "none", borderTop: "1px solid var(--border-color, #e5e7eb)" }} />
-            <span
-              style={{
-                position: "absolute",
-                top: "-10px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "var(--card-bg, #fff)",
-                padding: "0 12px",
-                fontSize: "12px",
-                color: "#6b7280",
-              }}
-            >
-              {t("authentication:orTryDemo")}
-            </span>
+          <div className="auth-divider">
+            <span>{t("authentication:orTryDemo")}</span>
           </div>
 
           <button
             type="button"
-            className="secondary-button"
+            className="oauth-button"
             onClick={handleDemoAccess}
             disabled={loginMutation.isPending || demoLoginMutation.isPending}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              border: "1px solid #10b981",
-              background: "#ecfdf5",
-              color: "#065f46",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
           >
             <Sparkles size={16} />
             <span>{t("authentication:demoBtn")}</span>

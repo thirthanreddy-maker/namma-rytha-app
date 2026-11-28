@@ -9,8 +9,8 @@ export default function NotFound() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: "var(--background)", color: "var(--foreground)" }}>
-      <Card className="w-full max-w-lg shadow-lg border" style={{ borderColor: "var(--border)", borderRadius: "var(--radius-lg)", background: "var(--card)" }}>
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: "transparent", color: "var(--foreground)" }}>
+      <Card className="w-full max-w-lg shadow-lg border not-found-card" style={{ borderColor: "var(--border)", borderRadius: "var(--radius-lg)" }}>
         <CardContent className="pt-8 pb-8 px-6 text-center">
           <div className="flex justify-center mb-5">
             <div className="relative">
