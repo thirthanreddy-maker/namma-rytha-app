@@ -186,7 +186,7 @@ h3 { font-size: 15px; letter-spacing: -.25px; }
 .section-row h2 { margin-top: 6px; }
 .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--grid-gap); align-items: stretch; }
 .lower-grid { margin-top: var(--grid-gap); }
-.panel { border: 1px solid var(--border); background: rgba(255,255,255,.86); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
+.panel { min-width: 0; max-width: 100%; border: 1px solid var(--border); background: rgba(255,255,255,.86); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
 .panel-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .panel-title h3 { margin-top: 6px; }
 .panel-title p { color: #819389; font-size: 10px; margin-top: 5px; }
@@ -242,6 +242,7 @@ h3 { font-size: 15px; letter-spacing: -.25px; }
 .feature-intro h1 { margin-top: 8px; font-size: clamp(26px, 3vw, 36px); }
 .feature-intro p { color: #70847a; line-height: 1.55; font-size: 13px; max-width: 660px; margin-top: 8px; }
 .feature-content { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .85fr); gap: var(--grid-gap); align-items: stretch; }
+.feature-content > * { min-width: 0; max-width: 100%; }
 .feature-content-wide { grid-template-columns: minmax(0, 1fr); }
 .recommendation-card { border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
 .blue-card { background: #e8f4f7; border: 1px solid #d2e9ee; color: #285866; }
@@ -956,7 +957,8 @@ html, body, button, input, select, textarea, .landing-page, .auth-page, .app-she
 .dark .modal-upload-action { background: #33274e; color: #efe8ff !important; }
 
 /* Advanced Namma Rytha Feature Workspaces */
-.rytha-module-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+.rytha-module-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; max-width: 100%; }
+.rytha-module-stack > * { min-width: 0; max-width: 100%; }
 .rytha-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--grid-gap); align-items: stretch; }
 .rytha-two-col > .panel { height: 100%; }
 .rytha-loading-card { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 120px; }
